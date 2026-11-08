@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pandemicradar – a data-driven pandemic risk indicator</title>
+<meta name="description" content="Base rates plus live outbreak signals from WHO, ECDC and CDC. A risk indicator, not a prediction.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='none' stroke='%23ff5d73' stroke-width='10'/><circle cx='50' cy='50' r='12' fill='%23ff5d73'/></svg>">
+</head>
+<body>
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top"><span class="pulse"></span>Pandemicradar</a>
+    <nav><a href="#signals">Signals</a><a href="#watchlist">Watchlist</a><a href="#hotspots">Hotspots</a><a href="#consequences">Consequences</a><a href="#method">Method</a><a class="cta" href="#newsletter">Subscribe</a></nav>
+    <button id="theme" aria-label="Toggle theme">◐</button>
+  </div>
+</header>
+
+<section class="hero" id="top">
+  <div class="wrap">
+    <p class="eyebrow">Live risk indicator · Last updated <span id="updated-static">2026-11-08 19:48 (Stockholm time)</span></p>
+    <h1>How likely is the <span class="grad">next pandemic</span>?</h1>
+    <p class="lede">Historical base rates combined with the latest outbreak reports from WHO, ECDC and CDC, refreshed daily.</p>
+    <div class="metrics" id="metrics"></div>
+    <div class="disclaimer"><strong>Not a prediction.</strong> Nobody can forecast exactly where or when the next pandemic will begin. This site is a transparent risk indicator: probabilities come from published base rates, and the risk scores are our own estimates from a simple, documented formula.</div>
+  </div>
+</section>
+
+<main class="wrap">
+  <section id="signals">
+    <div class="sec-head"><h2>Current outbreak signals</h2><p>Events in WHO Disease Outbreak News from the last 180 days, placed by country and coloured by risk score.</p></div>
+    <div class="card map-card"><div id="map"></div>
+      <div class="legend"><span><i style="background:var(--low)"></i>&lt; 4</span><span><i style="background:var(--mid)"></i>4–5.9</span><span><i style="background:var(--high)"></i>≥ 6</span><span class="muted">Risk score (0–10, estimate)</span></div>
+    </div>
+    <div class="card">
+      <div class="table-tools">
+        <input id="q" type="search" placeholder="Filter by pathogen or country…">
+        <select id="cls"><option value="">All classes</option></select>
+      </div>
+      <div class="table-wrap"><table id="tbl"><thead><tr>
+        <th data-k="score">Risk</th><th data-k="title">Event</th><th data-k="class">Class</th><th data-k="date">Reported</th><th data-k="cases">Cases</th><th data-k="deaths">Deaths</th>
+      </tr></thead><tbody></tbody></table></div>
+      <p class="note">Click a column to sort. Case and death counts are parsed automatically from WHO summaries; blank means none were stated. Open the WHO report for exact figures.</p>
+    </div>
+    <div class="card travel"><h3>CDC travel notices</h3><div id="travel" class="chips"></div></div>
+  </section>
+
+  <section id="watchlist">
+    <div class="sec-head"><h2>Pathogen watchlist</h2><p>Qualitative assessments. No exact probabilities are published for individual pathogens; levels are our estimates based on the sources cited.</p></div>
+    <div class="cards" id="watch"></div>
+  </section>
+
+  <section id="hotspots">
+    <div class="sec-head"><h2>Where: hotspots</h2><p>Current activity is measured by the number of WHO outbreak reports that mention each country in the last 365 days. Structural spillover risk comes from the research literature.</p></div>
+    <div class="grid2">
+      <div class="card"><h3>WHO reports per country (365 days)</h3><div class="chart-box"><canvas id="hot"></canvas></div></div>
+      <div class="card"><h3>Structural risk drivers</h3>
+        <p>Allen et al. (2017) find that emerging zoonoses most often arise in tropical forest regions with high mammal diversity, changing land use and growing populations: mainly <b>West &amp; Central Africa</b>, <b>South &amp; Southeast Asia</b> and parts of <b>Latin America</b>.</p>
+        <p>Weak preparedness amplifies risk: the <b>Global Health Security Index 2021</b> found that no country was fully prepared for a major epidemic or pandemic.</p>
+        <ul class="kv"><li><span>Highest structural risk (estimate)</span><b>Central Africa, SE Asia, South Asia</b></li><li><span>Highest current activity</span><b id="topcountry">—</b></li><li><span>Influenza watch</span><b>Poultry &amp; dairy (US, Asia)</b></li></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="consequences">
+    <div class="sec-head"><h2>Consequences: three scenarios</h2><p>World Bank influenza pandemic scenarios (Burns, van der Mensbrugghe &amp; Timmer, 2008). Model estimates, not forecasts.</p></div>
+    <div class="cards three" id="scen"></div>
+    <div class="card"><div class="chart-box short"><canvas id="scenChart"></canvas></div>
+      <p class="note">For comparison: WHO estimates COVID-19 excess mortality at about 14.9 million in 2020–2021. Fan, Jamison &amp; Summers (2018) estimate expected annual losses from pandemic influenza at about US$500 billion (≈0.6% of global income), including the value of lives lost.</p></div>
+  </section>
+
+  <section id="newsletter">
+    <div class="card news">
+      <div><h2>Get the daily briefing</h2><p>A short email with the strongest new signals and any change in the risk picture.</p></div>
+      <form id="signup"><input type="email" required placeholder="you@example.com" aria-label="Email"><button>Subscribe</button></form>
+      <p id="signup-msg" class="signup-msg" role="status"></p>
+    </div>
+  </section>
+
+  <section id="method">
+    <div class="sec-head"><h2>Method &amp; sources</h2></div>
+    <div class="grid2">
+      <div class="card"><h3>Base rate</h3><p>Cumulative probability = 1 − (1 − p)<sup>n</sup>, assuming independent years (a simplification). p ≈ 2%/yr for a COVID-scale pandemic (Marani et al. 2021) and ≈ 1%/yr for a severe, 1918-scale pandemic (Madhav et al. 2017).</p>
+        <h3>Risk score (estimate)</h3><p>Pathogen class × 2 (novel/unknown or respiratory = 4, henipa/hanta = 3, haemorrhagic fever or mpox = 2, vector-borne/other = 1) + log₁₀(cases + 1), capped at 3, + 2 if multi-country, + 2 if reported ≤ 14 days ago (1 if ≤ 45 days). Rescaled to 0–10. Respiratory pathogens weigh most because historical pandemics have almost always spread through the airways.</p>
+        <h3>Data status</h3><div id="status" class="chips"></div></div>
+      <div class="card"><h3>Sources</h3><ul class="sources" id="sources"></ul></div>
+    </div>
+  </section>
+</main>
+<footer><div class="wrap">Pandemicradar · Risk indicator, not a prediction · Not medical advice · Last updated <span id="updated-foot"></span></div></footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+</body></html>

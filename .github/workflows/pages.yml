@@ -1,0 +1,73 @@
+# Builds site/ from public outbreak feeds and deploys it to GitHub Pages.
+name: Deploy Pandemicradar
+
+on:
+  schedule:
+    # 05:30 UTC daily (06:30 in Stockholm during CET, standard time).
+    - cron: "30 5 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+# pages + id-token are required by deploy-pages. contents: write lets the
+# job commit the refreshed snapshot back to main (GITHUB_TOKEN pushes do not
+# start another run; the [skip ci] marker is a second guard).
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip ci]')
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Refresh data sources
+        run: |
+          cp -a out/snapshot.json /tmp/snapshot.prev.json
+          cp -a out/newsletter.md /tmp/newsletter.prev.md
+          if python3 refresh.py; then
+            echo "refresh.py succeeded"
+          else
+            echo "::warning title=Refresh failed::refresh.py failed (a source may be down). Building and deploying the last snapshot."
+            cp -a /tmp/snapshot.prev.json out/snapshot.json
+            cp -a /tmp/newsletter.prev.md out/newsletter.md
+          fi
+
+      - name: Build site
+        run: python3 build_site.py
+
+      - name: Commit refreshed snapshot
+        continue-on-error: true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add out/snapshot.json out/newsletter.md site/index.html site/assets/data.js
+          if git diff --staged --quiet; then
+            echo "No snapshot changes to commit"
+          else
+            git commit -m "Refresh outbreak snapshot [skip ci]"
+            git push origin HEAD:main
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
