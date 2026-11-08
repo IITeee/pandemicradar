@@ -33,10 +33,7 @@ The subscribe form stays on “Coming soon” until `SIGNUP_ENDPOINT` at the top
 
 ## Community
 
-The Community section uses [Giscus](https://giscus.app), which stores comments as GitHub Discussions. The giscus GitHub App is installed. The section shows “Community launching soon” until Discussions are enabled and `GISCUS.categoryId` is set at the top of `site/assets/app.js`. The repository id is already set (`R_kgDOVnXMjA`).
-
-1. Enable **Discussions** under **Settings → General**.
-2. Use the **Announcements** category (Announcement type, so only maintainers and the giscus app open a thread). Copy its GraphQL node id (`DIC_kw…`) into `GISCUS.categoryId`.
+The Community section uses [Giscus](https://giscus.app), which stores comments as GitHub Discussions in the **Announcements** category (`DIC_kwDOVnXMjM4DKrkn`). That category is the announcement type, so only maintainers and the giscus app open new threads. The repository id is `R_kgDOVnXMjA`. Both ids live in the `GISCUS` block at the top of `site/assets/app.js`.
 
 Topic tabs (General, H5N1 / bird flu, Ebola, MERS & coronaviruses, Data & methodology) each map to one discussion via `data-mapping="specific"`.
 

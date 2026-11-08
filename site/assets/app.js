@@ -3,15 +3,13 @@
 const SIGNUP_ENDPOINT = "";
 
 // Community comments via Giscus (GitHub Discussions).
-// repoId is this repository's GraphQL node id. The giscus GitHub App is already installed.
-// categoryId stays empty until Discussions are enabled and an Announcement category
-// exists (DIC_kw…). Only maintainers and giscus should open new threads. The section
-// shows "Community launching soon" until categoryId is set.
+// Announcements is the repository's announcement category: only maintainers and the
+// giscus app open new threads. Topic tabs pass data-mapping "specific".
 const GISCUS = {
   repo: "IITeee/pandemicradar",
   repoId: "R_kgDOVnXMjA",
   category: "Announcements",
-  categoryId: "",
+  categoryId: "DIC_kwDOVnXMjM4DKrkn",
   mapping: "specific",
   theme: "preferred_color_scheme",
   lang: "en",
