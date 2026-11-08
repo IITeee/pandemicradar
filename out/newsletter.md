@@ -1,6 +1,6 @@
 # Pandemicradar – newsletter 2026-11-08
 
-*Last updated 2026-11-08 19:56 (Stockholm time). Risk indicator, not a forecast.*
+*Last updated 2026-11-08 20:25 (Stockholm time). Risk indicator, not a forecast.*
 
 ## Base risk
 At ~2% per year for a COVID-scale pandemic (Marani et al. 2021): 2% within 1 year(s), 10% within 5 year(s), 18% within 10 year(s).
