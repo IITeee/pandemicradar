@@ -33,11 +33,11 @@ The subscribe form stays on “Coming soon” until `SIGNUP_ENDPOINT` at the top
 
 ## Custom domain
 
-`site/CNAME` contains `pandemicradar.org`. The Pages artifact is the contents of `site/`, so that file is published at the site root. Styles and scripts use relative `assets/…` paths, which resolve both at `https://pandemicradar.org/` and under `https://isaktaernholm.github.io/pandemicradar/`.
+`site/CNAME` contains `pandemicradar.org`. The Pages artifact is the contents of `site/`, so that file is published at the site root. Styles and scripts use relative `assets/…` paths, which resolve both at `https://pandemicradar.org/` and under `https://iiteee.github.io/pandemicradar/`.
 
 DNS for the apex domain should point at GitHub Pages:
 
 - `A` records: `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
 - `AAAA` records: `2606:50c0:8000::153`, `2606:50c0:8001::153`, `2606:50c0:8002::153`, `2606:50c0:8003::153`
 
-In **Settings → Pages**, set Source to **GitHub Actions**, enter `pandemicradar.org` as the custom domain, and turn on **Enforce HTTPS** after the DNS check succeeds. Optional `www` is a separate DNS record and is not listed in `CNAME`.
+In **Settings → Pages**, set Source to **GitHub Actions**, enter `pandemicradar.org` as the custom domain, and turn on **Enforce HTTPS** after the DNS check succeeds. `www` is not listed in `site/CNAME`; point it at GitHub with a DNS `CNAME` to `iiteee.github.io`.
