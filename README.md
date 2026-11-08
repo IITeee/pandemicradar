@@ -31,6 +31,15 @@ python3 refresh.py && python3 build_site.py
 
 The subscribe form stays on “Coming soon” until `SIGNUP_ENDPOINT` at the top of `site/assets/app.js` points at a form backend.
 
+## Community
+
+The Community section uses [Giscus](https://giscus.app), which stores comments as GitHub Discussions. The giscus GitHub App is installed. The section shows “Community launching soon” until Discussions are enabled and `GISCUS.categoryId` is set at the top of `site/assets/app.js`. The repository id is already set (`R_kgDOVnXMjA`).
+
+1. Enable **Discussions** under **Settings → General**.
+2. Use the **Announcements** category (Announcement type, so only maintainers and the giscus app open a thread). Copy its GraphQL node id (`DIC_kw…`) into `GISCUS.categoryId`.
+
+Topic tabs (General, H5N1 / bird flu, Ebola, MERS & coronaviruses, Data & methodology) each map to one discussion via `data-mapping="specific"`.
+
 ## Custom domain
 
 `site/CNAME` contains `pandemicradar.org`. The Pages artifact is the contents of `site/`, so that file is published at the site root. Styles and scripts use relative `assets/…` paths, which resolve both at `https://pandemicradar.org/` and under `https://iiteee.github.io/pandemicradar/`.

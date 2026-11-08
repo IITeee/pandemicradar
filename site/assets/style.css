@@ -54,6 +54,11 @@ td.num{font-family:"JetBrains Mono",monospace;font-size:13px;white-space:nowrap}
 #signup{display:flex;gap:10px}#signup input{flex:1}#signup button{background:var(--acc);color:#fff;border:0;border-radius:10px;padding:0 20px;font:inherit;font-weight:600;cursor:pointer}
 .signup-msg{grid-column:1/-1;min-height:1em;font-weight:600;color:var(--low)!important}
 .sources{padding-left:0;list-style:none;margin:0}.sources li{padding:9px 0;border-top:1px solid var(--line);font-size:14px}.sources li:first-child{border:0}.sources small{display:block;color:var(--mut)}
+.topic-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.topic-tabs button{font:inherit;font-size:13.5px;font-weight:600;color:var(--mut);background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer}
+.topic-tabs button[aria-selected="true"]{color:#fff;background:var(--acc);border-color:var(--acc)}
+.community-soon{margin:0;padding:18px;border:1px dashed var(--line);border-radius:14px;background:var(--bg2);color:var(--mut);font-size:15px}
+#giscus,.giscus,.giscus-frame{width:100%;max-width:100%}
 footer{border-top:1px solid var(--line);padding:26px 0;color:var(--mut);font-size:13px;margin-top:30px}
 .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--card);color:var(--txt)}.leaflet-popup-content{font-family:Inter;font-size:13px}
 @media(max-width:900px){.metrics{grid-template-columns:repeat(2,1fr)}.grid2,.news,.cards.three{grid-template-columns:1fr}nav a:not(.cta){display:none}#map{height:320px}}

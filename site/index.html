@@ -14,7 +14,7 @@
 <header class="nav">
   <div class="wrap nav-in">
     <a class="brand" href="#top"><span class="pulse"></span>Pandemicradar</a>
-    <nav><a href="#signals">Signals</a><a href="#watchlist">Watchlist</a><a href="#hotspots">Hotspots</a><a href="#consequences">Consequences</a><a href="#method">Method</a><a class="cta" href="#newsletter">Subscribe</a></nav>
+    <nav><a href="#signals">Signals</a><a href="#watchlist">Watchlist</a><a href="#hotspots">Hotspots</a><a href="#consequences">Consequences</a><a href="#method">Method</a><a href="#community">Community</a><a class="cta" href="#newsletter">Subscribe</a></nav>
     <button id="theme" aria-label="Toggle theme">◐</button>
   </div>
 </header>
@@ -87,6 +87,18 @@
         <h3>Risk score (estimate)</h3><p>Pathogen class × 2 (novel/unknown or respiratory = 4, henipa/hanta = 3, haemorrhagic fever or mpox = 2, vector-borne/other = 1) + log₁₀(cases + 1), capped at 3, + 2 if multi-country, + 2 if reported ≤ 14 days ago (1 if ≤ 45 days). Rescaled to 0–10. Respiratory pathogens weigh most because historical pandemics have almost always spread through the airways.</p>
         <h3>Data status</h3><div id="status" class="chips"></div></div>
       <div class="card"><h3>Sources</h3><ul class="sources" id="sources"></ul></div>
+    </div>
+  </section>
+
+  <section id="community">
+    <div class="sec-head">
+      <h2>Community</h2>
+      <p>Discuss outbreaks, the data, and preparedness. Be respectful, cite your sources, and don’t offer medical advice. Comments are moderated.</p>
+    </div>
+    <div class="card">
+      <div class="topic-tabs" id="topic-tabs" role="tablist" aria-label="Discussion topics"></div>
+      <p id="community-soon" class="community-soon" hidden>Community launching soon. Topic threads will open here once discussions are connected.</p>
+      <div id="giscus"></div>
     </div>
   </section>
 </main>

@@ -2,6 +2,25 @@
 // Set to a real endpoint (e.g. Buttondown/Mailchimp/Formspree URL) to enable signups. While empty, submit shows "Coming soon".
 const SIGNUP_ENDPOINT = "";
 
+// Community comments via Giscus (GitHub Discussions).
+// repoId is this repository's GraphQL node id. The giscus GitHub App is already installed.
+// categoryId stays empty until Discussions are enabled and an Announcement category
+// exists (DIC_kw…). Only maintainers and giscus should open new threads. The section
+// shows "Community launching soon" until categoryId is set.
+const GISCUS = {
+  repo: "IITeee/pandemicradar",
+  repoId: "R_kgDOVnXMjA",
+  category: "Announcements",
+  categoryId: "",
+  mapping: "specific",
+  theme: "preferred_color_scheme",
+  lang: "en",
+  reactionsEnabled: "1",
+  inputPosition: "top",
+  loading: "lazy",
+  topics: ["General", "H5N1 / bird flu", "Ebola", "MERS & coronaviruses", "Data & methodology"]
+};
+
 // ===== Literature constants (embedded, with sources) =====
 const LIT = {
   scenarios: [ // Burns, van der Mensbrugghe & Timmer (World Bank, 2008)
@@ -98,3 +117,61 @@ $("sources").innerHTML=LIT.sources.map(([t,d,u])=>`<li><a href="${u}" target="_b
 $("signup").onsubmit=async e=>{e.preventDefault();const m=$("signup-msg"),email=e.target.querySelector("input").value;
   if(!SIGNUP_ENDPOINT){m.textContent="Coming soon – the newsletter launches shortly. Thanks for your interest!";return}
   try{await fetch(SIGNUP_ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});m.textContent="Thanks! Check your inbox to confirm."}catch{m.textContent="Something went wrong, please try again."}};
+
+// community — topic tabs switch the Giscus term (data-mapping "specific")
+(function(){
+  const tabs=$("topic-tabs"), slot=$("giscus"), soon=$("community-soon");
+  if(!tabs||!slot||!soon) return;
+  const ready=!!(GISCUS.repoId&&GISCUS.categoryId);
+  const theme=()=>localStorage.prTheme==="light"||localStorage.prTheme==="dark"?localStorage.prTheme:GISCUS.theme;
+  let term=GISCUS.topics[0], mounted=false;
+  function send(config){
+    const frame=slot.querySelector("iframe.giscus-frame");
+    if(!frame) return false;
+    frame.contentWindow.postMessage({giscus:{setConfig:config}},"https://giscus.app");
+    return true;
+  }
+  function mount(){
+    if(mounted) return;
+    mounted=true;
+    const s=document.createElement("script");
+    s.src="https://giscus.app/client.js";
+    s.async=true;
+    s.crossOrigin="anonymous";
+    const attrs={
+      "data-repo":GISCUS.repo,
+      "data-repo-id":GISCUS.repoId,
+      "data-category":GISCUS.category,
+      "data-category-id":GISCUS.categoryId,
+      "data-mapping":GISCUS.mapping,
+      "data-term":term,
+      "data-strict":"0",
+      "data-reactions-enabled":GISCUS.reactionsEnabled,
+      "data-emit-metadata":"0",
+      "data-input-position":GISCUS.inputPosition,
+      "data-theme":theme(),
+      "data-lang":GISCUS.lang,
+      "data-loading":GISCUS.loading
+    };
+    Object.entries(attrs).forEach(([k,v])=>s.setAttribute(k,v));
+    slot.replaceChildren(s);
+    const watch=new MutationObserver(()=>{if(send({term,theme:theme()})) watch.disconnect()});
+    watch.observe(slot,{childList:true,subtree:true});
+  }
+  function select(next,btn){
+    term=next;
+    tabs.querySelectorAll("button").forEach(b=>b.setAttribute("aria-selected",b===btn?"true":"false"));
+    if(!ready) return;
+    if(!send({term})) mount();
+  }
+  GISCUS.topics.forEach((t,i)=>{
+    const b=document.createElement("button");
+    b.type="button"; b.role="tab"; b.textContent=t;
+    b.setAttribute("aria-selected",i===0?"true":"false");
+    b.onclick=()=>select(t,b);
+    tabs.appendChild(b);
+  });
+  if(!ready){soon.hidden=false;return}
+  soon.remove();
+  select(term,tabs.querySelector("button"));
+})();
