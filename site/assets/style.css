@@ -5,11 +5,11 @@ body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:
 a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
 .wrap{max-width:1180px;margin:0 auto;padding:0 22px}
 .nav{position:sticky;top:0;z-index:1000;backdrop-filter:blur(12px);background:color-mix(in srgb,var(--bg) 80%,transparent);border-bottom:1px solid var(--line)}
-.nav-in{display:flex;align-items:center;gap:20px;height:60px}
+.nav-in{display:flex;align-items:center;gap:20px;min-height:60px;flex-wrap:wrap;padding:8px 0}
 .brand{font-weight:800;font-size:18px;color:var(--txt);display:flex;align-items:center;gap:10px;letter-spacing:-.02em}
 .pulse{width:10px;height:10px;border-radius:50%;background:var(--high);box-shadow:0 0 0 0 var(--high);animation:p 2s infinite}
 @keyframes p{70%{box-shadow:0 0 0 10px transparent}100%{box-shadow:0 0 0 0 transparent}}
-nav{margin-left:auto;display:flex;gap:18px;font-size:14px}nav a{color:var(--mut)}nav a:hover{color:var(--txt);text-decoration:none}
+nav{margin-left:auto;display:flex;gap:18px;font-size:14px;flex-wrap:wrap;justify-content:flex-end}nav a{color:var(--mut)}nav a:hover{color:var(--txt);text-decoration:none}
 nav .cta{color:#fff;background:var(--acc);padding:6px 14px;border-radius:999px}
 #theme{background:none;border:1px solid var(--line);color:var(--txt);border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:16px}
 .hero{padding:70px 0 40px;background:radial-gradient(900px 400px at 15% -10%,rgba(124,156,255,.22),transparent),radial-gradient(700px 400px at 95% 10%,rgba(255,93,115,.16),transparent)}
@@ -41,7 +41,7 @@ td.num{font-family:"JetBrains Mono",monospace;font-size:13px;white-space:nowrap}
 .chip b{margin-right:4px}.l4{border-color:var(--high);color:var(--high)}.l3{border-color:var(--mid);color:var(--mid)}
 .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}.cards.three{grid-template-columns:repeat(3,1fr);margin-bottom:16px}
 .wcard{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow);border-top:4px solid var(--c)}
-.wcard h4{margin:0 0 4px;font-size:17px}.wcard .lvl{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--c)}
+.wcard h3,.wcard h4{margin:0 0 4px;font-size:17px}.wcard h3 a{color:var(--txt)}.wcard .lvl{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--c)}
 .wcard p{color:var(--mut);font-size:14px;margin:10px 0}.wcard .src{font-size:12px;color:var(--mut)}
 .scard{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:var(--shadow)}
 .scard .t{font-weight:700;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--c)}.scard .big{font-size:34px;font-weight:800;letter-spacing:-.03em;margin:6px 0 0}
@@ -59,6 +59,17 @@ td.num{font-family:"JetBrains Mono",monospace;font-size:13px;white-space:nowrap}
 .topic-tabs button[aria-selected="true"]{color:#fff;background:var(--acc);border-color:var(--acc)}
 .community-soon{margin:0;padding:18px;border:1px dashed var(--line);border-radius:14px;background:var(--bg2);color:var(--mut);font-size:15px}
 #giscus,.giscus,.giscus-frame{width:100%;max-width:100%}
+.crumbs{color:var(--mut);font-size:14px;margin:22px 0 0}.crumbs a{color:var(--mut)}
+.page-kicker{margin-top:8px}
+.status-block h2{font-size:26px;letter-spacing:-.02em;margin:22px 0 8px}
+.status-block h3{font-size:18px;margin:16px 0 6px}
+.status-block p{margin:6px 0}
+.status-list{margin:8px 0 0;padding-left:18px}.status-list li{margin:6px 0}
+.foot-links{display:flex;flex-wrap:wrap;gap:8px 14px;margin:10px 0}
+.foot-links a{color:var(--mut)}
+footer p{margin:0}
+#faq-list h3{font-size:17px;margin:18px 0 4px}#faq-list h3:first-child{margin-top:0}
+#faq-list p{margin:0;color:var(--mut)}
 footer{border-top:1px solid var(--line);padding:26px 0;color:var(--mut);font-size:13px;margin-top:30px}
 .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--card);color:var(--txt)}.leaflet-popup-content{font-family:Inter;font-size:13px}
 @media(max-width:900px){.metrics{grid-template-columns:repeat(2,1fr)}.grid2,.news,.cards.three{grid-template-columns:1fr}nav a:not(.cta){display:none}#map{height:320px}}

@@ -95,7 +95,7 @@ const W=[["Influenza A(H5N1) & novel flu","High","var(--high)",`Widespread in wi
 ["Nipah","Low–medium","var(--low)","Isolated cases in India; very high fatality but limited spread.","WHO DON"],
 ["Mpox","Low–medium","var(--low)","Still reported in the EU/EEA.","ECDC CDTR"],
 ["Hantavirus (Andes)","Low","var(--low)","Cruise-ship cluster; Andes virus is the only hantavirus known to spread between people.","WHO DON"]];
-$("watch").innerHTML=W.map(([n,l,c,t,src])=>`<div class="wcard" style="--c:${c}"><div class="lvl">${l}</div><h4>${n}</h4><p>${t}</p><div class="src">Source: ${src} · level is an estimate</div></div>`).join("");
+$("watch").innerHTML=W.map(([n,l,c,t,src])=>`<div class="wcard" style="--c:${c}"><div class="lvl">${l}</div><h3>${n}</h3><p>${t}</p><div class="src">Source: ${src} · level is an estimate</div></div>`).join("");
 
 // charts
 Chart.defaults.color=css("--mut");Chart.defaults.font.family="Inter";Chart.defaults.borderColor=css("--line");

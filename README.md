@@ -17,7 +17,7 @@ Base rates and context cite Marani et al. 2021, Madhav et al. 2017, Allen et al.
 
 ## Update and deploy
 
-[GitHub Actions](.github/workflows/pages.yml) runs `python3 refresh.py` and then `python3 build_site.py` every day at 05:30 UTC, on every push to `main`, and when you start it by hand from the Actions tab. `refresh.py` writes `out/snapshot.json` and `out/newsletter.md`. `build_site.py` writes `site/assets/data.js` and stamps the time in `site/index.html`. The workflow then deploys the `site/` directory to GitHub Pages.
+[GitHub Actions](.github/workflows/pages.yml) runs `python3 refresh.py` and then `python3 build_site.py` every day at 05:30 UTC, on every push to `main`, and when you start it by hand from the Actions tab. `refresh.py` writes `out/snapshot.json` and `out/newsletter.md`. `build_site.py` writes `site/assets/data.js`, stamps the time in `site/index.html`, regenerates the disease pages (`/h5n1/`, `/ebola/`, `/mers/`, `/mpox/`, `/measles/`, `/dengue/`), and rewrites `site/robots.txt` and `site/sitemap.xml`. The workflow then deploys the `site/` directory to GitHub Pages.
 
 If a source is down and `refresh.py` exits with an error, the workflow keeps the previous snapshot, rebuilds, and still deploys. A successful refresh is committed back to `main` so the snapshot history is kept.
 
