@@ -1,155 +1,177 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pandemicradar — H5N1, Ebola, MERS and pandemic risk</title>
-<meta name="description" content="Daily WHO, ECDC and CDC outbreak signals for H5N1 bird flu, Ebola, MERS, mpox, measles and dengue, plus a pandemic risk indicator. Not a prediction.">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pandemicradar</title>
+<meta name="description" content="Pandemicradar is a top-down pixel action RPG. Explore a small valley, outrun three fictional plagues — Sporeveil, Rushfever, and Amberhaze — and reach Safe Haven.">
 <link rel="canonical" href="https://pandemicradar.org/">
-<meta name="theme-color" content="#0b0e14" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#121614">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Pandemicradar">
 <meta property="og:locale" content="en_US">
 <meta property="og:url" content="https://pandemicradar.org/">
-<meta property="og:title" content="Pandemicradar — H5N1, Ebola, MERS and pandemic risk">
-<meta property="og:description" content="Daily WHO, ECDC and CDC outbreak signals for H5N1 bird flu, Ebola, MERS, mpox, measles and dengue, plus a pandemic risk indicator. Not a prediction.">
+<meta property="og:title" content="Pandemicradar">
+<meta property="og:description" content="A top-down pixel action RPG. Outrun three fictional plagues and reach Safe Haven.">
 <meta property="og:image" content="https://pandemicradar.org/assets/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Pandemicradar — live outbreak signals and pandemic risk">
+<meta property="og:image:alt" content="A pixel hero in a teal cloak faces violet spores, a sprinting figure, and amber fog">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Pandemicradar — H5N1, Ebola, MERS and pandemic risk">
-<meta name="twitter:description" content="Daily WHO, ECDC and CDC outbreak signals for H5N1 bird flu, Ebola, MERS, mpox, measles and dengue, plus a pandemic risk indicator. Not a prediction.">
+<meta name="twitter:title" content="Pandemicradar">
+<meta name="twitter:description" content="A top-down pixel action RPG. Outrun three fictional plagues and reach Safe Haven.">
 <meta name="twitter:image" content="https://pandemicradar.org/assets/og.png">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="preconnect" href="https://unpkg.com">
-<link rel="preconnect" href="https://cdn.jsdelivr.net">
-<link rel="preconnect" href="https://gc.zgo.at">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script>try{document.documentElement.dataset.theme=localStorage.prTheme||(matchMedia("(prefers-color-scheme: light)").matches?"light":"dark")}catch(e){}</script>
-<!--LDJSON-->
-<script type="application/ld+json" id="ldjson">{"@context": "https://schema.org", "@graph": [{"@type": "WebSite", "name": "Pandemicradar", "url": "https://pandemicradar.org/", "description": "Daily WHO, ECDC and CDC outbreak signals for H5N1 bird flu, Ebola, MERS, mpox, measles and dengue, plus a pandemic risk indicator. Not a prediction.", "inLanguage": "en"}, {"@type": "Organization", "name": "Pandemicradar", "url": "https://pandemicradar.org/"}, {"@type": "Dataset", "name": "Pandemicradar daily outbreak signals", "description": "Risk scores and outbreak reports compiled each day from WHO Disease Outbreak News, the ECDC Communicable Disease Threats Report, CDC travel notices, and the CDC A(H5) bird flu summary.", "url": "https://pandemicradar.org/", "dateModified": "2026-11-10T14:41:00+01:00", "keywords": ["H5N1", "bird flu", "Ebola", "MERS", "coronavirus", "mpox", "measles", "dengue", "pandemic risk"], "creator": {"@type": "Organization", "name": "Pandemicradar", "url": "https://pandemicradar.org/"}, "isBasedOn": ["https://www.who.int/emergencies/disease-outbreak-news", "https://www.ecdc.europa.eu/en/publications-data/monitoring/weekly-threats-reports", "https://wwwnc.cdc.gov/travel/notices", "https://www.cdc.gov/bird-flu/situation-summary/index.html"]}, {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "What is Pandemicradar?", "acceptedAnswer": {"@type": "Answer", "text": "Pandemicradar is a daily risk indicator. It combines published historical base rates for pandemics with the latest outbreak reports from WHO, ECDC and CDC. It is not a forecast of where or when the next pandemic will start."}}, {"@type": "Question", "name": "Which outbreaks does Pandemicradar follow?", "acceptedAnswer": {"@type": "Answer", "text": "The site highlights signals such as H5N1 bird flu, Ebola, MERS and other coronaviruses, mpox, measles, dengue, Nipah and yellow fever when those diseases appear in WHO Disease Outbreak News, ECDC weekly reports, or CDC travel and bird-flu updates."}}, {"@type": "Question", "name": "Where do the data come from?", "acceptedAnswer": {"@type": "Answer", "text": "Live inputs are the WHO Disease Outbreak News API, the ECDC Communicable Disease Threats Report feed, CDC Travel Health Notices, and the CDC A(H5) bird flu situation summary. Base rates cite Marani et al. 2021 and Madhav et al. 2017."}}, {"@type": "Question", "name": "How often is Pandemicradar updated?", "acceptedAnswer": {"@type": "Answer", "text": "The dataset is refreshed every day around 06:30 in Stockholm (05:30 UTC during standard time). Each page shows the timestamp of the latest snapshot."}}, {"@type": "Question", "name": "Is this medical advice or a prediction?", "acceptedAnswer": {"@type": "Answer", "text": "No. Scores are estimates from a documented formula, and the probabilities are published base rates, not a prediction. The site is not medical advice."}}]}, {"@type": "ItemList", "name": "Outbreak status by disease", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "H5N1 bird flu", "url": "https://pandemicradar.org/h5n1/"}, {"@type": "ListItem", "position": 2, "name": "Ebola", "url": "https://pandemicradar.org/ebola/"}, {"@type": "ListItem", "position": 3, "name": "MERS and coronaviruses", "url": "https://pandemicradar.org/mers/"}, {"@type": "ListItem", "position": 4, "name": "Mpox", "url": "https://pandemicradar.org/mpox/"}, {"@type": "ListItem", "position": 5, "name": "Measles", "url": "https://pandemicradar.org/measles/"}, {"@type": "ListItem", "position": 6, "name": "Dengue", "url": "https://pandemicradar.org/dengue/"}]}]}</script>
-<!--/LDJSON-->
+<link rel="stylesheet" href="assets/game.css">
 </head>
 <body>
-<header class="nav">
-  <div class="wrap nav-in">
-    <a class="brand" href="#top"><span class="pulse"></span>Pandemicradar</a>
-    <nav><a href="#signals">Signals</a><a href="#diseases">Diseases</a><a href="#watchlist">Watchlist</a><a href="#hotspots">Hotspots</a><a href="#faq">FAQ</a><a href="#method">Method</a><a href="#community">Community</a><a class="cta" href="#newsletter">Subscribe</a></nav>
-    <button id="theme" aria-label="Toggle theme">◐</button>
-  </div>
-</header>
-
-<section class="hero" id="top">
-  <div class="wrap">
-    <p class="eyebrow">Live risk indicator · Last updated <span id="updated-static">2026-11-10 14:41 (Stockholm time)</span></p>
-    <h1>How likely is the <span class="grad">next pandemic</span>?</h1>
-    <p class="lede">Historical base rates, plus daily outbreak reports on H5N1 bird flu, Ebola, MERS, mpox, measles and dengue from WHO, ECDC and CDC.</p>
-    <div class="metrics" id="metrics"></div>
-    <div class="disclaimer"><strong>Not a prediction.</strong> Nobody can forecast exactly where or when the next pandemic will begin. This site is a transparent risk indicator: probabilities come from published base rates, and the risk scores are our own estimates from a simple, documented formula.</div>
-  </div>
-</section>
-
-<main class="wrap">
-  <section id="signals">
-    <div class="sec-head"><h2>Current outbreak signals</h2><p>Events in WHO Disease Outbreak News from the last 180 days, placed by country and coloured by risk score.</p></div>
-    <div class="card map-card"><div id="map" role="region" aria-label="World map of countries mentioned in recent WHO outbreak reports, coloured by risk score"></div>
-      <div class="legend"><span><i style="background:var(--low)"></i>&lt; 4</span><span><i style="background:var(--mid)"></i>4–5.9</span><span><i style="background:var(--high)"></i>≥ 6</span><span class="muted">Risk score (0–10, estimate)</span></div>
+<h1 class="sr">Pandemicradar</h1>
+<div id="bezel">
+  <header class="hud">
+    <div class="who">
+      <p id="area">Ashfen</p>
+      <p id="exposed"></p>
     </div>
-    <div class="card">
-      <div class="table-tools">
-        <input id="q" type="search" placeholder="Filter by pathogen or country…" aria-label="Filter outbreak signals">
-        <select id="cls" aria-label="Filter by pathogen class"><option value="">All classes</option></select>
+    <div class="meters">
+      <div class="meter">
+        <span>Health</span>
+        <div class="track" aria-hidden="true"><i id="hp-bar"></i></div>
+        <b id="hp-n">100</b>
       </div>
-      <div class="table-wrap"><table id="tbl"><thead><tr>
-        <th data-k="score" scope="col">Risk</th><th data-k="title" scope="col">Event</th><th data-k="class" scope="col">Class</th><th data-k="date" scope="col">Reported</th><th data-k="cases" scope="col">Cases</th><th data-k="deaths" scope="col">Deaths</th>
-      </tr></thead><tbody></tbody></table></div>
-      <p class="note">Click a column to sort. Case and death counts are parsed automatically from WHO summaries; blank means none were stated. Open the WHO report for exact figures.</p>
-    </div>
-    <div class="card travel"><h3>CDC travel notices</h3><div id="travel" class="chips"></div></div>
-  </section>
-
-  <section id="diseases">
-    <div class="sec-head"><h2>Outbreak status by disease</h2><p>A page each for H5N1 bird flu, Ebola, MERS and other coronaviruses, mpox, measles and dengue, rewritten from the same daily snapshot as the map.</p></div>
-<!--DISEASE_CARDS-->
-<div class="cards" id="disease-cards"><article class="wcard" style="--c:var(--high)"><h3><a href="h5n1/">H5N1 bird flu</a></h3><p>CDC reports 74 human H5N1 cases in the United States since 2024 and describes the risk to the public as low.</p><a href="h5n1/">Current H5N1 bird flu status</a></article><article class="wcard" style="--c:var(--high)"><h3><a href="ebola/">Ebola</a></h3><p>Latest WHO report: Ebola disease caused by Bundibugyo virus, Democratic Republic of the Congo, Kenya and Nigeria (2026-11-06), risk score 6.5 out of 10.</p><a href="ebola/">Current Ebola status</a></article><article class="wcard" style="--c:var(--mid)"><h3><a href="mers/">MERS and coronaviruses</a></h3><p>Latest WHO report: Middle East respiratory syndrome coronavirus - Kingdom of Saudi Arabia (2026-10-15), risk score 5.9 out of 10.</p><a href="mers/">Current MERS and coronaviruses status</a></article><article class="wcard" style="--c:var(--low)"><h3><a href="mpox/">Mpox</a></h3><p>No WHO Disease Outbreak News item in the last 180 days of this snapshot matched this disease.</p><a href="mpox/">Current Mpox status</a></article><article class="wcard" style="--c:var(--mid)"><h3><a href="measles/">Measles</a></h3><p>CDC travel notice: Level 1 - Global Measles.</p><a href="measles/">Current Measles status</a></article><article class="wcard" style="--c:var(--mid)"><h3><a href="dengue/">Dengue</a></h3><p>CDC travel notice: Level 1 - Global Dengue.</p><a href="dengue/">Current Dengue status</a></article></div>
-<!--/DISEASE_CARDS-->
-  </section>
-
-  <section id="watchlist">
-    <div class="sec-head"><h2>Pathogen watchlist</h2><p>Qualitative assessments. No exact probabilities are published for individual pathogens; levels are our estimates based on the sources cited.</p></div>
-    <div class="cards" id="watch"></div>
-  </section>
-
-  <section id="hotspots">
-    <div class="sec-head"><h2>Where outbreaks are concentrated</h2><p>Current activity is measured by the number of WHO outbreak reports that mention each country in the last 365 days. Structural spillover risk comes from the research literature.</p></div>
-    <div class="grid2">
-      <div class="card"><h3>WHO reports per country (365 days)</h3><div class="chart-box"><canvas id="hot" aria-label="Bar chart of WHO outbreak reports per country in the last 365 days"></canvas></div></div>
-      <div class="card"><h3>Structural risk drivers</h3>
-        <p>Allen et al. (2017) find that emerging zoonoses most often arise in tropical forest regions with high mammal diversity, changing land use and growing populations: mainly <b>West &amp; Central Africa</b>, <b>South &amp; Southeast Asia</b> and parts of <b>Latin America</b>.</p>
-        <p>Weak preparedness amplifies risk: the <b>Global Health Security Index 2021</b> found that no country was fully prepared for a major epidemic or pandemic.</p>
-        <ul class="kv"><li><span>Highest structural risk (estimate)</span><b>Central Africa, SE Asia, South Asia</b></li><li><span>Highest current activity</span><b id="topcountry">—</b></li><li><span>Influenza watch</span><b>Poultry &amp; dairy (US, Asia)</b></li></ul>
+      <div class="meter inf">
+        <span>Infection</span>
+        <div class="track" aria-hidden="true"><i id="inf-bar"></i></div>
+        <b id="inf-n">0</b>
       </div>
     </div>
-  </section>
-
-  <section id="consequences">
-    <div class="sec-head"><h2>What a pandemic could cost</h2><p>World Bank influenza pandemic scenarios (Burns, van der Mensbrugghe &amp; Timmer, 2008). Model estimates, not forecasts.</p></div>
-    <div class="cards three" id="scen"></div>
-    <div class="card"><div class="chart-box short"><canvas id="scenChart" aria-label="Chart comparing mild, moderate and severe pandemic scenarios for deaths and GDP loss"></canvas></div>
-      <p class="note">For comparison: WHO estimates COVID-19 excess mortality at about 14.9 million in 2020–2021. Fan, Jamison &amp; Summers (2018) estimate expected annual losses from pandemic influenza at about US$500 billion (≈0.6% of global income), including the value of lives lost.</p></div>
-  </section>
-
-  <section id="newsletter">
-    <div class="card news">
-      <div><h2>Get the daily briefing</h2><p>A short email with the strongest new signals and any change in the risk picture.</p></div>
-      <form id="signup"><input type="email" required placeholder="you@example.com" aria-label="Email"><button>Subscribe</button></form>
-      <p id="signup-msg" class="signup-msg" role="status"></p>
+    <div class="bag">
+      <span id="keys">No keys</span>
+      <span id="dash-state">Dash ready</span>
+      <button id="use-tonic" type="button">Tonic <b id="tonic-n">0</b></button>
+      <button id="use-ration" type="button">Supply <b id="ration-n">0</b></button>
     </div>
-  </section>
+  </header>
 
-  <section id="method">
-    <div class="sec-head"><h2>Method and sources</h2></div>
-    <div class="grid2">
-      <div class="card"><h3>Base rate</h3><p>Cumulative probability = 1 − (1 − p)<sup>n</sup>, assuming independent years (a simplification). p ≈ 2%/yr for a COVID-scale pandemic (Marani et al. 2021) and ≈ 1%/yr for a severe, 1918-scale pandemic (Madhav et al. 2017).</p>
-        <h3>Risk score (estimate)</h3><p>Pathogen class × 2 (novel/unknown or respiratory = 4, henipa/hanta = 3, haemorrhagic fever or mpox = 2, vector-borne/other = 1) + log₁₀(cases + 1), capped at 3, + 2 if multi-country, + 2 if reported ≤ 14 days ago (1 if ≤ 45 days). Rescaled to 0–10. Respiratory pathogens weigh most because historical pandemics have almost always spread through the airways.</p>
-        <h3>Data status</h3><div id="status" class="chips"></div></div>
-      <div class="card"><h3>Sources</h3><ul class="sources" id="sources"></ul></div>
+  <div id="stage">
+    <canvas id="view" width="256" height="176" role="img" aria-label="Pandemicradar playfield. A top-down pixel map.">A pixel map loads here.</canvas>
+    <p id="toast" class="toast" hidden></p>
+  </div>
+
+  <div id="box">
+    <p id="speaker" hidden></p>
+    <p id="line" aria-live="polite">Three fictional plagues are spreading. Reach Safe Haven.</p>
+    <button id="next" type="button" hidden>Next</button>
+  </div>
+
+  <div id="touch">
+    <div class="pad" role="group" aria-label="Move">
+      <button type="button" class="up" data-hold="up" aria-label="Up">▲</button>
+      <button type="button" class="left" data-hold="left" aria-label="Left">◀</button>
+      <button type="button" class="down" data-hold="down" aria-label="Down">▼</button>
+      <button type="button" class="right" data-hold="right" aria-label="Right">▶</button>
     </div>
-  </section>
-
-  <section id="faq">
-    <div class="sec-head"><h2>Frequently asked questions</h2><p>What Pandemicradar is, which outbreaks it follows, and how often the figures change.</p></div>
-<!--FAQ-->
-<div class="card" id="faq-list"><h3>What is Pandemicradar?</h3><p>Pandemicradar is a daily risk indicator. It combines published historical base rates for pandemics with the latest outbreak reports from WHO, ECDC and CDC. It is not a forecast of where or when the next pandemic will start.</p><h3>Which outbreaks does Pandemicradar follow?</h3><p>The site highlights signals such as H5N1 bird flu, Ebola, MERS and other coronaviruses, mpox, measles, dengue, Nipah and yellow fever when those diseases appear in WHO Disease Outbreak News, ECDC weekly reports, or CDC travel and bird-flu updates.</p><h3>Where do the data come from?</h3><p>Live inputs are the WHO Disease Outbreak News API, the ECDC Communicable Disease Threats Report feed, CDC Travel Health Notices, and the CDC A(H5) bird flu situation summary. Base rates cite Marani et al. 2021 and Madhav et al. 2017.</p><h3>How often is Pandemicradar updated?</h3><p>The dataset is refreshed every day around 06:30 in Stockholm (05:30 UTC during standard time). Each page shows the timestamp of the latest snapshot.</p><h3>Is this medical advice or a prediction?</h3><p>No. Scores are estimates from a documented formula, and the probabilities are published base rates, not a prediction. The site is not medical advice.</p></div>
-<!--/FAQ-->
-  </section>
-
-  <section id="community">
-    <div class="sec-head">
-      <h2>Community</h2>
-      <p>Discuss outbreaks, the data, and preparedness. Be respectful, cite your sources, and don’t offer medical advice. Comments are moderated.</p>
+    <div class="face">
+      <button type="button" data-tap="dash" aria-label="Dash">Dash</button>
+      <button type="button" class="primary" data-tap="act" aria-label="Action">Act</button>
+      <button type="button" data-tap="pause" aria-label="Pause">Pause</button>
     </div>
+  </div>
+
+  <div id="title" class="overlay">
     <div class="card">
-      <div class="topic-tabs" id="topic-tabs" role="tablist" aria-label="Discussion topics"></div>
-      <p id="community-soon" class="community-soon" hidden>Community launching soon. Topic threads will open here once discussions are connected.</p>
-      <div id="giscus"></div>
+      <p class="eyebrow">Field action RPG</p>
+      <p class="word">Pandemicradar</p>
+      <p>Sporeveil creeps across the ground. Rushfever sprints, then slumps. Amberhaze drifts on a loop. None of these plagues exist outside the game. Cross the valley and reach Safe Haven.</p>
+      <div class="actions">
+        <button id="btn-new" class="primary" type="button">New game</button>
+        <button id="btn-continue" type="button" disabled>Continue</button>
+        <button id="btn-notes" type="button">Field notes</button>
+        <button id="btn-sound" type="button" aria-pressed="true">Sound: on</button>
+      </div>
+      <p id="confirm" hidden>Starting over clears the saved road.
+        <button id="btn-new-yes" class="primary" type="button">Start over</button>
+        <button id="btn-new-no" type="button">Cancel</button>
+      </p>
+      <ul class="help">
+        <li>Move with WASD or the arrow keys.</li>
+        <li>Act with Space, Enter, or E. Talk, open, and read.</li>
+        <li>Dash with Shift or K. Tonic is U. Supplies are I.</li>
+        <li>Pause with Esc or P. On a phone, use the pad under the map.</li>
+      </ul>
     </div>
-  </section>
-</main>
-<footer><div class="wrap">
-<p>Pandemicradar · Risk indicator, not a prediction · Not medical advice · Last updated <span id="updated-foot"></span></p>
-<nav class="foot-links" aria-label="Disease pages"><a href="h5n1/">H5N1 bird flu</a><a href="ebola/">Ebola</a><a href="mers/">MERS</a><a href="mpox/">Mpox</a><a href="measles/">Measles</a><a href="dengue/">Dengue</a></nav>
-<p>Privacy-friendly, cookie-free analytics by GoatCounter.</p>
-</div></footer>
+  </div>
 
-<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script defer src="assets/data.js"></script>
-<script defer src="assets/app.js"></script>
-<script data-goatcounter="https://pandemicradar.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
-</body></html>
+  <div id="pause" class="overlay" hidden>
+    <div class="card">
+      <p class="eyebrow">Paused</p>
+      <p class="word">Hold still</p>
+      <p id="pause-time"></p>
+      <div class="actions">
+        <button id="btn-resume" class="primary" type="button">Resume</button>
+        <button id="btn-save" type="button">Save</button>
+        <button id="btn-pause-notes" type="button">Field notes</button>
+        <button id="btn-pause-sound" type="button">Sound</button>
+        <button id="btn-title" type="button">Title</button>
+      </div>
+      <ul class="help">
+        <li>The road saves itself at each gate, and when you pick something up.</li>
+        <li>Sporeveil grows only while you stay in its map.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div id="notes" class="overlay" hidden>
+    <div class="card notes">
+      <p class="eyebrow">Field notes</p>
+      <p class="word">Three plagues</p>
+      <h2>Sporeveil</h2>
+      <p>A violet bloom in the soil. It spreads one tile at a time across grass and paths while you remain in that place. It never chases. Standing in it fills the infection meter. A cloth mask halves that. Step onto clean ground and the meter eases.</p>
+      <h2>Rushfever</h2>
+      <p>A fever of sprinting. Infected people patrol, burst toward you when they can see you, then slump and rest. They do not stain the ground. A touch costs health and infection. The mask does not stop a tackle. Break their line of sight, move while they rest, or dash through the burst.</p>
+      <h2>Amberhaze</h2>
+      <p>Luminous fog that travels a fixed route. It does not chase and it does not stop. Overlap fills infection quickly. It is slower than you. Wait in a gap, or dash a thin bank.</p>
+      <h2>The road</h2>
+      <p>Dr. Lumen in Ashfen keeps a cloth mask. Whisperwood hides the Rust Key, which opens the Old Mill storeroom. Glassport's clinic holds the Cord Key. The field lab, east of the cordon, holds the Haven Seal. The seal opens Safe Haven, south of the cordon.</p>
+      <p>Field Tonics cut infection. Supplies restore health. At a full infection meter, the road ends.</p>
+      <div class="actions">
+        <button id="btn-close-notes" class="primary" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="over" class="overlay" hidden>
+    <div class="card">
+      <p class="eyebrow">Game over</p>
+      <p class="word">The road ends</p>
+      <p id="over-msg"></p>
+      <div class="actions">
+        <button id="btn-load" class="primary" type="button">Load save</button>
+        <button id="btn-over-new" type="button">New game</button>
+        <button id="btn-over-title" type="button">Title</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="win" class="overlay" hidden>
+    <div class="card">
+      <p class="eyebrow">Safe Haven</p>
+      <p class="word">The air is clean</p>
+      <p>The gate is shut. Sporeveil, Rushfever, and Amberhaze stay on the other side. You can stand here.</p>
+      <p id="win-time"></p>
+      <div class="actions">
+        <button id="btn-win-walk" class="primary" type="button">Keep walking</button>
+        <button id="btn-win-title" type="button">Title</button>
+        <button id="btn-win-new" type="button">Play again</button>
+      </div>
+    </div>
+  </div>
+
+  <p id="boot-error" class="boot-error" hidden></p>
+</div>
+<p class="foot">Fictional plagues and original pixel art. Not a forecast, and not medical advice.</p>
+<noscript><p class="foot">Pandemicradar needs JavaScript to run the game.</p></noscript>
+<script src="assets/world.js"></script>
+<script src="assets/art.js"></script>
+<script src="assets/game.js"></script>
+</body>
+</html>
