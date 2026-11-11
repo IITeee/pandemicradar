@@ -27,25 +27,28 @@
 <body>
 <h1 class="sr">Pandemicradar</h1>
 <div id="bezel">
-  <header class="hud">
-    <div class="who">
-      <p id="area">Ashfen</p>
-      <p id="who">Traveler</p>
-    </div>
-    <div class="meters">
-      <div class="meter hp"><span>HP</span><div class="track"><i id="hp-bar"></i></div><b id="hp-n">50</b></div>
-      <div class="meter inf"><span>Infection</span><div class="track"><i id="inf-bar"></i></div><b id="inf-n">0</b></div>
-      <div class="meter exp"><span id="lv-n">Lv 1</span><div class="track"><i id="exp-bar"></i></div><b id="exp-n">0</b></div>
-    </div>
-    <div class="bag">
-      <span id="notes">0 notes</span>
-      <span id="mode-pill">Offline</span>
-      <span id="quest">Talk to Dr. Lumen</span>
-    </div>
-  </header>
-
   <div id="stage">
-    <canvas id="view" width="384" height="216" tabindex="0" aria-label="Pandemicradar side-view map">The map loads here.</canvas>
+    <canvas id="view" width="768" height="432" tabindex="0" aria-label="Pandemicradar side-view map">The map loads here.</canvas>
+    <canvas id="minimap" width="148" height="82" aria-label="Minimap"></canvas>
+    <div id="status">
+      <div class="lv-badge" id="lv-n">1</div>
+      <div class="bars">
+        <div class="meter hp"><span>HP</span><div class="track"><i id="hp-bar"></i></div><b id="hp-n">50</b></div>
+        <div class="meter inf"><span>INF</span><div class="track"><i id="inf-bar"></i></div><b id="inf-n">0</b></div>
+        <div class="meter exp"><span>EXP</span><div class="track"><i id="exp-bar"></i></div><b id="exp-n">0</b></div>
+      </div>
+      <div class="slots">
+        <div class="slot"><canvas id="ico-spray" width="28" height="28"></canvas><b>Z</b></div>
+        <div class="slot"><canvas id="ico-tonic" width="28" height="28"></canvas><b id="slot-tonic">×1</b></div>
+      </div>
+      <div class="bag">
+        <span id="area">Ashfen</span>
+        <span id="who">Traveler</span>
+        <span id="notes">0 notes</span>
+        <span id="mode-pill">Offline</span>
+        <span id="quest">Talk to Dr. Lumen</span>
+      </div>
+    </div>
     <p id="toast" class="toast" hidden></p>
     <div id="invite" class="banner" hidden>
       <p id="invite-text"></p>
@@ -84,7 +87,7 @@
 
   <div id="title" class="overlay">
     <div class="card title-card">
-      <div class="crest" aria-hidden="true"></div>
+      <canvas id="title-hero" width="280" height="100" aria-hidden="true"></canvas>
       <p class="eyebrow">Side-scrolling field RPG</p>
       <p class="word">Pandemicradar</p>
       <p>Jump, climb, and fight through three invented plagues. Other travelers share the road when a server is connected. Alone, the same valley still plays.</p>
@@ -118,13 +121,16 @@
   </div>
 
   <div id="dialog" class="overlay" hidden>
-    <div class="card">
-      <p class="eyebrow" id="dlg-name">Dr. Lumen</p>
-      <p id="dlg-line"></p>
-      <div class="actions">
-        <button id="dlg-next" class="primary" type="button">Next</button>
-        <button id="dlg-shop" type="button" hidden>Shop</button>
-        <button id="dlg-close" type="button">Close</button>
+    <div class="card dialog-card">
+      <canvas id="portrait" width="84" height="84" aria-hidden="true"></canvas>
+      <div class="dialog-copy">
+        <p class="eyebrow" id="dlg-name">Dr. Lumen</p>
+        <p id="dlg-line"></p>
+        <div class="actions">
+          <button id="dlg-next" class="primary" type="button">Next</button>
+          <button id="dlg-shop" type="button" hidden>Shop</button>
+          <button id="dlg-close" type="button">Close</button>
+        </div>
       </div>
     </div>
   </div>

@@ -21,7 +21,7 @@ body {
     radial-gradient(900px 420px at 50% -10%, #1c2a22 0%, transparent 55%),
     var(--bg);
   color: var(--ink);
-  font-family: ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+  font-family: "Trebuchet MS", "Avenir Next", "Segoe UI", sans-serif;
   padding: calc(12px + env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom));
 }
 
@@ -44,21 +44,67 @@ body {
   padding: 10px;
 }
 
-.hud {
-  display: grid;
-  grid-template-columns: minmax(110px, 0.8fr) minmax(220px, 1.4fr) minmax(160px, 1fr);
-  gap: 8px 12px;
-  align-items: center;
-  padding: 8px 10px;
-  background:
-    linear-gradient(#2a2218, #141810 8px);
-  border: 2px solid #6b4a28;
-  border-bottom: 3px solid #e2b15a;
-  box-shadow: inset 0 0 0 1px #1a120c;
+#stage { position: relative; background: #102018; }
+#minimap {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 148px;
+  height: 82px;
+  border: 3px solid #e2b15a;
+  border-radius: 12px;
+  background: rgba(12, 18, 24, 0.8);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+  image-rendering: pixelated;
 }
-
-#area { margin: 0; color: var(--gold); font-size: 14px; }
-#who { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+#status {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  background: linear-gradient(#3a2c22, #1a120e);
+  border: 3px solid #e2b15a;
+  border-radius: 18px;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.35), inset 0 0 0 2px #6b4428;
+}
+.lv-badge {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff1c2, #e2b15a 55%, #8a6230);
+  color: #1a1408;
+  font-weight: 800;
+  border: 2px solid #fff6d0;
+}
+.bars { flex: 1; min-width: 160px; }
+.slots { display: flex; gap: 6px; }
+.slot {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  background: #120e0c;
+  border: 2px solid #6b4428;
+  display: grid;
+  place-items: center;
+  position: relative;
+}
+.slot canvas { width: 28px; height: 28px; image-rendering: pixelated; }
+.slot b {
+  position: absolute;
+  right: 3px;
+  bottom: 1px;
+  font-size: 11px;
+  color: #fff6d0;
+}
+#area { color: var(--gold); font-weight: 700; }
+#who { color: var(--muted); }
 
 .meter {
   display: grid;
@@ -202,15 +248,26 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 }
 .overlay[hidden] { display: none; }
 .card {
-  width: min(480px, 100%);
+  width: min(520px, 100%);
   max-height: 100%;
   overflow: auto;
-  background:
-    linear-gradient(#243028, #17211b 28px);
+  background: linear-gradient(#2c241c, #17140f 36px);
   border: 3px solid var(--gold);
-  box-shadow: 6px 6px 0 #000, inset 0 0 0 2px #3a2a18;
+  border-radius: 18px;
+  box-shadow: 0 10px 0 rgba(0, 0, 0, 0.45), inset 0 0 0 2px #6b4428;
   padding: 14px 16px 16px;
 }
+.dialog-card { display: flex; gap: 12px; align-items: flex-start; width: min(560px, 100%); }
+#portrait {
+  width: 84px;
+  height: 84px;
+  flex: 0 0 84px;
+  border-radius: 14px;
+  border: 3px solid #e2b15a;
+  image-rendering: pixelated;
+  background: #1a2430;
+}
+.dialog-copy { flex: 1; min-width: 0; }
 .crest {
   width: 54px;
   height: 54px;
@@ -225,6 +282,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
 }
 .title-card .word { text-align: center; text-shadow: 3px 3px 0 #1a120c; }
 .title-card .eyebrow { text-align: center; }
+#title-hero { display: block; margin: 0 auto 6px; width: 280px; height: 100px; image-rendering: pixelated; }
 .eyebrow { margin: 0; color: var(--teal); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
 .word { margin: 2px 0 8px; font-size: 28px; line-height: 1.1; color: var(--gold); }
 .card p, .hint { line-height: 1.45; }
@@ -253,6 +311,8 @@ label { display: block; margin-bottom: 4px; font-size: 13px; }
 
 @media (pointer: coarse), (max-width: 860px) {
   #touch, body.touch #touch { display: flex; }
-  .hud, #dock { grid-template-columns: 1fr; }
+  #dock { grid-template-columns: 1fr; }
   .bag { justify-content: flex-start; }
+  #status { flex-wrap: wrap; }
+  #minimap { width: 112px; height: 64px; }
 }
