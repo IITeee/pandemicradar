@@ -1,0 +1,15 @@
+# Render Blueprint. Free web service, Docker build from the repo root.
+# The public URL Render assigns is https://<service>.onrender.com
+# The game client needs the WebSocket form: wss://<service>.onrender.com
+services:
+  - type: web
+    name: pandemicradar
+    runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production

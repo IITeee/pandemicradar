@@ -1,1592 +1,1301 @@
-/* Pandemicradar — original top-down field action RPG. No external assets. */
+/* Pandemicradar client: side-view platformer, online when the server answers, offline otherwise. */
 (function () {
   "use strict";
 
-  var TILE = 16;
-  var VW = 256;
-  var VH = 176;
-  var SAVE_KEY = "pandemicradar.rpg.v1";
-  var SOUND_KEY = "pandemicradar.rpg.sound";
-
-  var world = globalThis.PRWorld;
-  var art = globalThis.PRArt;
+  var SAVE_KEY = "pandemicradar.mmo.v1";
   var canvas = document.getElementById("view");
   var ctx = canvas.getContext("2d", { alpha: false });
-  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  var THEME = {
-    town: { grass: ["#6f776c", "#626960", "#7c8476"], dirt: ["#6f776c", "#626960", "#7c8476"], brick: "#8b9186", brick2: "#6d7468", mortar: "#4a5148", path: "#c6a36a", pathDark: "#8d6840", wood: "#a36b42" },
-    woods: { grass: ["#1f5a32", "#184828", "#2a7040"], dirt: ["#5c4a34", "#4a3c2a", "#6e5a40"], brick: "#3e4a38", brick2: "#2c3628", mortar: "#1a2418", path: "#c6a36a", pathDark: "#8d6840", wood: "#8d8680" },
-    mill: { grass: ["#6a543c", "#5a4632", "#7a6248"], dirt: ["#6a543c", "#5a4632", "#7a6248"], brick: "#6a5040", brick2: "#4e3c30", mortar: "#2a2018", path: "#c6a36a", pathDark: "#8d6840", wood: "#b07848" },
-    road: { grass: ["#246338", "#1c4e2c", "#2e7844"], dirt: ["#6a543c", "#5a4632", "#7a6248"], brick: "#4a5644", brick2: "#364232", mortar: "#1e281c", path: "#c6a36a", pathDark: "#8d6840", wood: "#a36b42" },
-    city: { grass: ["#5c656e", "#505860", "#6a737c"], dirt: ["#5c656e", "#505860", "#6a737c"], brick: "#6e7a88", brick2: "#556270", mortar: "#343c48", path: "#b08960", pathDark: "#7a5a38", wood: "#d4cfc2" },
-    cordon: { grass: ["#4a4638", "#3c382c", "#5a5442"], dirt: ["#4a4638", "#3c382c", "#5a5442"], brick: "#5c5848", brick2: "#403c30", mortar: "#221e18", path: "#b08960", pathDark: "#7a5a38", wood: "#8a7048" },
-    lab: { grass: ["#c5d0cc", "#b4c2be", "#d5e0dc"], dirt: ["#c5d0cc", "#b4c2be", "#d5e0dc"], brick: "#8aa0a4", brick2: "#6a8488", mortar: "#3a5054", path: "#b7c4c0", pathDark: "#8aa098", wood: "#d5e0dc" },
-    haven: { grass: ["#3c8e4e", "#2e743c", "#4ea45e"], dirt: ["#6a543c", "#5a4632", "#7a6248"], brick: "#d9d4c6", brick2: "#b8b2a4", mortar: "#7a7468", path: "#ecd7a4", pathDark: "#c4a46c", wood: "#d9d4c6" }
-  };
-
-  var mode = "title";
-  var notesReturn = "title";
-  var state = null;
-  var fade = null;
+  var content = null;
+  var save = null;
+  var map = null;
+  var player = null;
+  var playing = false;
+  var mode = "offline";
+  var ws = null;
+  var myId = null;
+  var connectTimer = 0;
+  var remotes = {};
+  var netMonsters = [];
+  var rooms = {};
+  var party = [];
+  var people = [];
+  var peopleSig = "";
+  var partySig = "";
+  var keys = {};
+  var edges = {};
+  var taps = {};
+  var pad = {};
   var animTime = 0;
-  var particles = [];
+  var portalLock = 0;
+  var attackLock = 0;
+  var sendAcc = 0;
+  var floaters = [];
   var toasts = [];
-  var keyHeld = {};
-  var padHeld = {};
-  var wantDash = false;
-  var soundOn = true;
-  var audioCtx = null;
-  var gfx = {};
-  var tileCache = {};
-  var lastSync = "";
+  var dialog = null;
+  var uiLock = false;
+  var loopLast = 0;
 
   function $(id) { return document.getElementById(id); }
 
   function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
 
-  function hash(x, y) {
-    var n = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263)) >>> 0;
-    n = (n ^ (n >>> 13)) >>> 0;
-    return n;
+  function serverUrl() {
+    var query = new URLSearchParams(location.search).get("server");
+    if (query) return query;
+    return (window.PR_CONFIG && window.PR_CONFIG.serverUrl) || "";
   }
 
-  function current() { return world.maps[state.mapId]; }
-
-  function tileOrigin(tx, ty) {
-    return { x: tx * TILE + 3, y: ty * TILE + 6 };
+  function mapById(id) {
+    for (var i = 0; i < content.maps.length; i++) {
+      if (content.maps[i].id === id) return content.maps[i];
+    }
+    return content.maps[0];
   }
 
-  function npcBox(n) {
-    return { x: n.tx * TILE + 3, y: n.ty * TILE + 6, w: 10, h: 8 };
-  }
+  function maxHp() { return PRSim.maxHpFor(content, save.level); }
 
-  function gateRect(g) {
-    return { x: g.tx * TILE, y: g.ty * TILE, w: g.tw * TILE, h: g.th * TILE };
-  }
-
-  function exitRect(e) {
-    return { x: e.tx * TILE, y: e.ty * TILE, w: e.tw * TILE, h: e.th * TILE };
-  }
-
-  function overlap(a, b) {
-    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-  }
-
-  function makeState() {
+  function fresh(name) {
+    var start = mapById("ashfen").spawn;
     return {
-      mapId: world.START.map,
-      player: { x: 0, y: 0, w: 10, h: 8, dir: "down", moving: false, anim: 0, dashT: 0, dashCd: 0, dashDir: "down", iframes: 0, vx: 0, vy: 0 },
-      hp: 100,
-      inf: 0,
-      time: 0,
-      mask: false,
-      tonics: 0,
-      rations: 0,
-      rust: false,
-      cord: false,
-      seal: false,
-      opened: {},
-      picked: {},
-      talked: {},
-      seen: {},
-      spores: null,
-      won: false,
-      talk: null,
-      exitLock: 0,
-      hintT: 0,
-      shake: 0,
-      exposed: "",
-      overMsg: "",
-      enemies: []
-    };
-  }
-
-  function initSpores() {
-    var spores = {};
-    Object.keys(world.maps).forEach(function (id) {
-      var map = world.maps[id];
-      if (!map.spore) return;
-      var field = {
-        acc: 0,
-        max: map.spore.max,
-        interval: map.spore.interval,
-        cells: map.spore.seeds.map(function (s) { return [s[0], s[1]]; }),
-        idx: {}
-      };
-      indexSpores(field);
-      spores[id] = field;
-    });
-    return spores;
-  }
-
-  function indexSpores(field) {
-    field.idx = {};
-    field.cells.forEach(function (c) { field.idx[c[0] + "," + c[1]] = 1; });
-  }
-
-  function placeAtStart() {
-    var s = world.START;
-    var p = tileOrigin(s.tx, s.ty);
-    state.mapId = s.map;
-    state.player.x = p.x;
-    state.player.y = p.y;
-    state.spores = initSpores();
-    spawnEnemies();
-  }
-
-  function spawnEnemies() {
-    var map = current();
-    state.enemies = (map.enemies || []).map(function (def) {
-      var p = tileOrigin(def.tx, def.ty);
-      return {
-        id: def.id,
-        x: p.x - 1,
-        y: p.y,
-        w: 12,
-        h: 8,
-        dir: "down",
-        mode: "patrol",
-        timer: 0,
-        wp: 0,
-        moving: false,
-        vx: 0,
-        vy: 0,
-        route: def.route.map(function (pt) {
-          return { x: pt[0] * TILE + 8, y: pt[1] * TILE + 10 };
-        })
-      };
-    });
-  }
-
-  function paint(rows, palette) {
-    var h = rows.length;
-    var w = rows[0].length;
-    var c = document.createElement("canvas");
-    c.width = w;
-    c.height = h;
-    var g = c.getContext("2d");
-    for (var y = 0; y < h; y++) {
-      if (rows[y].length !== w) throw new Error("sprite row " + y);
-      for (var x = 0; x < w; x++) {
-        var ch = rows[y][x];
-        if (ch === ".") continue;
-        var col = palette[ch];
-        if (!col) throw new Error("no color for '" + ch + "'");
-        g.fillStyle = col;
-        g.fillRect(x, y, 1, 1);
-      }
-    }
-    return c;
-  }
-
-  function mirror(src) {
-    var c = document.createElement("canvas");
-    c.width = src.width;
-    c.height = src.height;
-    var g = c.getContext("2d");
-    g.imageSmoothingEnabled = false;
-    g.translate(c.width, 0);
-    g.scale(-1, 1);
-    g.drawImage(src, 0, 0);
-    return c;
-  }
-
-  function makeTree(variant) {
-    var c = document.createElement("canvas");
-    c.width = 16;
-    c.height = 20;
-    var g = c.getContext("2d");
-    var greens = ["#1b5c30", "#2f8a44", "#143f22", "#8fd06a"];
-    var cx = 8;
-    var cy = 7;
-    var rad = 6 + (variant % 2);
-    for (var y = 0; y < 15; y++) {
-      for (var x = 0; x < 16; x++) {
-        var dx = x - cx;
-        var dy = y - cy;
-        if (dx * dx + dy * dy * 1.15 < rad * rad) {
-          var shade = (x * 3 + y + variant) % 7 === 0 ? greens[3] : ((x + y) % 3 === 0 ? greens[1] : greens[(x + variant) % 2]);
-          g.fillStyle = shade;
-          g.fillRect(x, y, 1, 1);
-        }
-      }
-    }
-    g.fillStyle = "#5a3a22";
-    g.fillRect(7, 12, 3, 8);
-    g.fillStyle = "#3a2416";
-    g.fillRect(7, 12, 1, 8);
-    return c;
-  }
-
-  function makeSpore(frame) {
-    var c = document.createElement("canvas");
-    c.width = 16;
-    c.height = 16;
-    var g = c.getContext("2d");
-    var spots = [[2, 3], [6, 8], [4, 12], [11, 5], [12, 11], [8, 2], [9, 13]];
-    for (var i = 0; i < spots.length; i++) {
-      if ((i + frame) % 4 === 0) continue;
-      g.fillStyle = i % 2 ? "#b06adf" : "#6c2f90";
-      g.fillRect(spots[i][0], spots[i][1], 2, 2);
-      g.fillStyle = "#f3e2ff";
-      g.fillRect(spots[i][0], spots[i][1], 1, 1);
-    }
-    return c;
-  }
-
-  function makeHaze() {
-    var c = document.createElement("canvas");
-    c.width = 32;
-    c.height = 20;
-    var g = c.getContext("2d");
-    for (var y = 0; y < 20; y++) {
-      for (var x = 0; x < 32; x++) {
-        var dx = (x - 16) / 15;
-        var dy = (y - 10) / 9;
-        var d = dx * dx + dy * dy;
-        if (d > 1) continue;
-        g.fillStyle = d < 0.35 ? "rgba(255, 236, 170, 0.95)" : "rgba(226, 170, 60, 0.8)";
-        g.fillRect(x, y, 1, 1);
-      }
-    }
-    return c;
-  }
-
-  function blankTile() {
-    var c = document.createElement("canvas");
-    c.width = 16;
-    c.height = 16;
-    return c;
-  }
-
-  function paintTile(themeName, kind, variant, frame) {
-    var c = blankTile();
-    var g = c.getContext("2d");
-    var t = THEME[themeName] || THEME.town;
-    function rect(x, y, w, h, color) {
-      g.fillStyle = color;
-      g.fillRect(x, y, w, h);
-    }
-    if (kind === "grass" || kind === "flower") {
-      rect(0, 0, 16, 16, t.grass[variant % 3]);
-      rect((variant * 3) % 14, (variant * 5) % 12, 1, 2, "#14381c");
-      rect((variant * 7 + 4) % 14, (variant * 2 + 6) % 12, 1, 2, "#8fd06a");
-      if (kind === "flower") {
-        rect(4, 8, 2, 2, "#e07a9a");
-        rect(10, 5, 2, 2, "#f0b429");
-        rect(7, 12, 1, 1, "#f7f4ee");
-      }
-    } else if (kind === "cobble") {
-      rect(0, 0, 16, 16, t.mortar);
-      for (var y = 0; y < 16; y += 5) {
-        var off = ((y / 5) | 0) % 2 ? 3 : 0;
-        for (var x = -4; x < 16; x += 6) {
-          rect(x + off, y, 5, 4, t.grass[(x + y + variant) & 1 ? 0 : 1]);
-        }
-      }
-    } else if (kind === "dirt") {
-      rect(0, 0, 16, 16, t.dirt[variant % 3]);
-      rect((variant * 4) % 12, (variant * 3) % 12, 2, 1, "#3a2c20");
-      rect((variant * 5 + 6) % 13, (variant + 8) % 13, 1, 1, "#c6a36a");
-    } else if (kind === "path") {
-      rect(0, 0, 16, 16, t.path);
-      rect(0, 0, 16, 1, t.pathDark);
-      rect((variant * 5) % 12, 4 + (variant % 3) * 3, 2, 1, t.pathDark);
-      rect((variant * 3 + 7) % 13, 8, 1, 1, "#efe0b8");
-    } else if (kind === "wood") {
-      rect(0, 0, 16, 16, "#a36b42");
-      rect(0, 0, 16, 1, "#6e4528");
-      rect(0, 4, 16, 1, "#6e4528");
-      rect(0, 8, 16, 1, "#6e4528");
-      rect(0, 12, 16, 1, "#6e4528");
-      rect(2 + variant, 1, 1, 3, "#c48454");
-      rect(10, 9, 1, 3, "#c48454");
-    } else if (kind === "stone") {
-      rect(0, 0, 16, 16, "#8a8680");
-      rect(0, 0, 16, 1, "#5e5a56");
-      rect(0, 8, 16, 1, "#5e5a56");
-      rect(variant % 8, 3, 3, 1, "#b8b2aa");
-    } else if (kind === "plaster") {
-      rect(0, 0, 16, 16, "#d9d3c6");
-      rect(0, 15, 16, 1, "#b2ab9e");
-      rect(4 + variant, 6, 2, 1, "#c4beb0");
-    } else if (kind === "tile") {
-      rect(0, 0, 16, 16, "#d7e2de");
-      rect(0, 0, 16, 1, "#a8bab6");
-      rect(0, 8, 16, 1, "#a8bab6");
-      rect(0, 0, 1, 16, "#a8bab6");
-      rect(8, 0, 1, 16, "#a8bab6");
-    } else if (kind === "wall") {
-      rect(0, 0, 16, 16, t.mortar);
-      for (var wy = 0; wy < 16; wy += 5) {
-        var woff = ((wy / 5) | 0) % 2 ? 4 : 0;
-        for (var wx = -8; wx < 16; wx += 8) {
-          rect(wx + woff, wy + 1, 7, 3, ((wx + wy + variant) & 2) ? t.brick : t.brick2);
-        }
-      }
-    } else if (kind === "water") {
-      rect(0, 0, 16, 16, frame % 2 ? "#164e72" : "#1a587f");
-      rect((frame * 3) % 16, 3, 6, 1, "#3d92c0");
-      rect((frame * 5 + 4) % 16, 8, 5, 1, "#8fd0ea");
-      rect((frame * 3 + 8) % 16, 12, 6, 1, "#3d92c0");
-    } else if (kind === "fence") {
-      rect(1, 2, 2, 12, "#6b4a2c");
-      rect(13, 2, 2, 12, "#6b4a2c");
-      rect(1, 5, 14, 2, "#c4924e");
-      rect(1, 9, 14, 2, "#a56b3c");
-    } else if (kind === "crate") {
-      rect(2, 3, 12, 11, "#8a5a32");
-      rect(3, 4, 10, 2, "#c48454");
-      rect(2, 8, 12, 1, "#5a3a22");
-      rect(7, 3, 1, 11, "#5a3a22");
-      rect(2, 3, 12, 1, "#14181c");
-      rect(2, 13, 12, 1, "#14181c");
-    } else if (kind === "bench") {
-      rect(0, 5, 16, 7, "#8a9098");
-      rect(0, 5, 16, 2, "#d8dce2");
-      rect(0, 5, 16, 1, "#14181c");
-      rect(0, 11, 16, 1, "#14181c");
-    } else if (kind === "barricade") {
-      for (var by = 0; by < 16; by++) {
-        for (var bx = 0; bx < 16; bx++) {
-          rect(bx, by, 1, 1, (((bx + by) / 4) | 0) % 2 ? "#e2c14a" : "#14181c");
-        }
-      }
-    } else if (kind === "lamp") {
-      rect(7, 6, 2, 10, "#3a342c");
-      rect(5, 3, 6, 4, "#14181c");
-      rect(6, 4, 4, 2, frame % 2 ? "#fff1c4" : "#f0b429");
-    } else if (kind === "door") {
-      rect(0, 0, 16, 16, "#3a2418");
-      rect(1, 1, 14, 14, "#c4924e");
-      rect(1, 1, 14, 2, "#e2b56a");
-      rect(7, 6, 2, 3, "#f0b429");
-      rect(0, 0, 16, 1, "#14181c");
-      rect(0, 15, 16, 1, "#14181c");
-    } else if (kind === "block") {
-      rect(0, 0, 16, 16, "#d5d0c4");
-      rect(0, 0, 16, 2, "#f4f0e6");
-      rect(0, 14, 16, 2, "#8e887c");
-      rect(0, 0, 2, 16, "#f4f0e6");
-      rect(14, 0, 2, 16, "#8e887c");
-    }
-    return c;
-  }
-
-  function getTile(theme, kind, variant, frame) {
-    var key = theme + "|" + kind + "|" + variant + "|" + (frame || 0);
-    if (!tileCache[key]) tileCache[key] = paintTile(theme, kind, variant, frame || 0);
-    return tileCache[key];
-  }
-
-  function buildGfx() {
-    if (!art || !art.sprites) throw new Error("Sprite data did not load.");
-    var pal = art.palettes.hero;
-    gfx.hero = {
-      down: [paint(art.sprites["hero-down-0"], pal), paint(art.sprites["hero-down-1"], pal)],
-      up: [paint(art.sprites["hero-up-0"], pal), paint(art.sprites["hero-up-1"], pal)],
-      right: [paint(art.sprites["hero-side-0"], pal), paint(art.sprites["hero-side-1"], pal)]
-    };
-    gfx.hero.left = [mirror(gfx.hero.right[0]), mirror(gfx.hero.right[1])];
-    gfx.sign = paint(art.sprites.sign, art.palettes.sign);
-    gfx.door = paint(art.sprites.door, art.palettes.door);
-    gfx.items = {
-      mask: paint(art.sprites.mask, art.palettes.mask),
-      tonic: paint(art.sprites.tonic, art.palettes.tonic),
-      ration: paint(art.sprites.ration, art.palettes.ration),
-      rust: paint(art.sprites.key, { o: "#d2653a" }),
-      cord: paint(art.sprites.key, { o: "#3ec8c0" }),
-      seal: paint(art.sprites.seal, art.palettes.seal)
-    };
-    gfx.npc = {};
-    Object.keys(art.npc).forEach(function (id) {
-      if (id === "enemy") return;
-      gfx.npc[id] = [
-        paint(art.sprites["person-0"], art.npc[id]),
-        paint(art.sprites["person-1"], art.npc[id])
-      ];
-    });
-    var ep = art.npc.enemy;
-    gfx.enemy = {
-      down: [paint(art.sprites["enemy-down-0"], ep), paint(art.sprites["enemy-down-1"], ep)],
-      up: [paint(art.sprites["enemy-up-0"], ep), paint(art.sprites["enemy-up-0"], ep)],
-      right: [paint(art.sprites["enemy-side-0"], ep), paint(art.sprites["enemy-side-0"], ep)]
-    };
-    gfx.enemy.left = [mirror(gfx.enemy.right[0]), mirror(gfx.enemy.right[1])];
-    gfx.trees = [makeTree(0), makeTree(1), makeTree(2)];
-    gfx.spore = [makeSpore(0), makeSpore(1), makeSpore(2), makeSpore(3)];
-    gfx.haze = makeHaze();
-  }
-
-  function ac() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === "suspended") audioCtx.resume();
-    return audioCtx;
-  }
-
-  function unlockAudio() {
-    if (!soundOn) return;
-    try { ac(); } catch (e) { /* autoplay can wait */ }
-  }
-
-  function tone(freq, dur, type, vol, slide) {
-    if (!soundOn) return;
-    try {
-      var actx = ac();
-      var o = actx.createOscillator();
-      var g = actx.createGain();
-      o.type = type || "square";
-      o.frequency.setValueAtTime(freq, actx.currentTime);
-      if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(1, slide), actx.currentTime + dur);
-      g.gain.setValueAtTime(vol || 0.03, actx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + dur);
-      o.connect(g);
-      g.connect(actx.destination);
-      o.start();
-      o.stop(actx.currentTime + dur + 0.02);
-    } catch (e) { /* sound is optional */ }
-  }
-
-  function tonePickup() {
-    tone(660, 0.07, "square", 0.03);
-    setTimeout(function () { tone(880, 0.09, "square", 0.03); }, 70);
-  }
-
-  function fanfare() {
-    [523, 659, 784, 1046].forEach(function (f, i) {
-      setTimeout(function () { tone(f, 0.18, "square", 0.035); }, i * 140);
-    });
-  }
-
-  function toast(msg) {
-    toasts.push({ msg: msg, t: 2.15 });
-  }
-
-  function burst(x, y) {
-    var colors = ["#f0b429", "#f4f1ea", "#2fbfa4", "#b06adf"];
-    for (var i = 0; i < 8; i++) {
-      particles.push({
-        x: x,
-        y: y,
-        vx: (Math.random() - 0.5) * 46,
-        vy: (Math.random() - 0.85) * 40,
-        t: 0.45,
-        c: colors[i % colors.length]
-      });
-    }
-  }
-
-  function markSeen(id, msg) {
-    if (state.seen[id]) return;
-    state.seen[id] = 1;
-    toast(msg);
-  }
-
-  function checkpoint() {
-    if (!state || state.hp <= 0 || state.inf >= 100) return false;
-    var data = {
       v: 1,
-      mapId: state.mapId,
-      x: state.player.x,
-      y: state.player.y,
-      dir: state.player.dir,
-      hp: state.hp,
-      inf: state.inf,
-      time: state.time,
-      mask: state.mask,
-      tonics: state.tonics,
-      rations: state.rations,
-      rust: state.rust,
-      cord: state.cord,
-      seal: state.seal,
-      opened: state.opened,
-      picked: state.picked,
-      talked: state.talked,
-      seen: state.seen,
-      won: state.won,
-      spores: {}
+      name: name,
+      level: 1,
+      exp: 0,
+      hp: content.hpBase,
+      infection: 0,
+      notes: 0,
+      mask: false,
+      tonics: 1,
+      kills: { sporeling: 0, rusher: 0, mite: 0 },
+      quests: {},
+      haven: false,
+      map: "ashfen",
+      x: start.x,
+      y: start.y
     };
-    Object.keys(state.spores || {}).forEach(function (id) {
-      var field = state.spores[id];
-      data.spores[id] = { acc: field.acc, max: field.max, interval: field.interval, cells: field.cells };
-    });
-    try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-      return true;
-    } catch (e) {
-      return false;
-    }
   }
 
-  function readSave() {
+  function loadSave() {
     try {
       var raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       var data = JSON.parse(raw);
-      if (!data || data.v !== 1 || !world.maps[data.mapId]) return null;
-      if (typeof data.x !== "number" || typeof data.y !== "number") return null;
+      if (!data || data.v !== 1 || !data.name) return null;
       return data;
-    } catch (e) {
+    } catch (err) {
       return null;
     }
   }
 
-  function applySave(data) {
-    state = makeState();
-    state.mapId = data.mapId;
-    state.player.x = data.x;
-    state.player.y = data.y;
-    state.player.dir = data.dir || "down";
-    state.hp = clamp(data.hp, 1, 100);
-    state.inf = clamp(data.inf, 0, 99);
-    state.time = data.time || 0;
-    state.mask = !!data.mask;
-    state.tonics = data.tonics | 0;
-    state.rations = data.rations | 0;
-    state.rust = !!data.rust;
-    state.cord = !!data.cord;
-    state.seal = !!data.seal;
-    state.opened = data.opened || {};
-    state.picked = data.picked || {};
-    state.talked = data.talked || {};
-    state.seen = data.seen || {};
-    state.won = !!data.won;
-    state.spores = initSpores();
-    Object.keys(data.spores || {}).forEach(function (id) {
-      if (!state.spores[id] || !data.spores[id].cells) return;
-      state.spores[id].cells = data.spores[id].cells.map(function (c) { return [c[0], c[1]]; });
-      state.spores[id].acc = data.spores[id].acc || 0;
-      indexSpores(state.spores[id]);
-    });
-    state.exitLock = 0.35;
-    spawnEnemies();
+  function persist() {
+    if (!save) return;
+    save.map = map.id;
+    save.x = player.x;
+    save.y = player.y;
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (err) { /* private mode */ }
   }
 
-  function grant(kind, name) {
-    if (kind === "mask") {
-      if (!state.mask) { state.mask = true; toast("Cloth mask"); tonePickup(); }
-    } else if (kind === "tonic") {
-      state.tonics += 1;
-      toast(name || "Field Tonic");
-      tonePickup();
-    } else if (kind === "ration") {
-      state.rations += 1;
-      toast(name || "Supplies");
-      tonePickup();
-    } else if (kind === "rust" || kind === "cord" || kind === "seal") {
-      if (!state[kind]) {
-        state[kind] = true;
-        toast(name || kind);
-        tonePickup();
-      }
-    }
-    checkpoint();
+  function toast(text) {
+    toasts.push({ text: text, t: 2.2 });
   }
 
-  function hits(body, map, withNpcs) {
-    var x0 = Math.floor(body.x / TILE);
-    var y0 = Math.floor(body.y / TILE);
-    var x1 = Math.floor((body.x + body.w - 0.001) / TILE);
-    var y1 = Math.floor((body.y + body.h - 0.001) / TILE);
-    for (var y = y0; y <= y1; y++) {
-      for (var x = x0; x <= x1; x++) {
-        if (y < 0 || x < 0 || y >= map.h || x >= map.w) return true;
-        if (world.SOLID[map.rows[y][x]]) return true;
-      }
-    }
-    var gates = map.gates || [];
-    for (var i = 0; i < gates.length; i++) {
-      if (state.opened[gates[i].id]) continue;
-      if (overlap(body, gateRect(gates[i]))) return true;
-    }
-    if (withNpcs) {
-      for (var n = 0; n < map.npcs.length; n++) {
-        if (overlap(body, npcBox(map.npcs[n]))) return true;
-      }
-    }
-    return false;
+  function log(htmlClass, text) {
+    var row = document.createElement("p");
+    row.className = htmlClass || "";
+    row.textContent = text;
+    var box = $("log");
+    box.appendChild(row);
+    while (box.children.length > 40) box.removeChild(box.firstChild);
+    box.scrollTop = box.scrollHeight;
   }
 
-function tryMove(body, dx, dy, map, withNpcs) {
-  if (!dx && !dy) return true;
-  body.x += dx;
-  body.y += dy;
-  if (hits(body, map, withNpcs)) {
-    body.x -= dx;
-    body.y -= dy;
-    return false;
-  }
-  return true;
-}
-
-function nudgeThrough(body, dx, dy, map, withNpcs) {
-  var steps = [1, -1, 2, -2, 3, -3, 5, -5];
-  for (var i = 0; i < steps.length; i++) {
-    var sx = dx ? 0 : steps[i];
-    var sy = dy ? 0 : steps[i];
-    if (!tryMove(body, sx, sy, map, withNpcs)) continue;
-    if (tryMove(body, dx, dy, map, withNpcs)) return;
-    body.x -= sx;
-    body.y -= sy;
-  }
-}
-
-function slide(body, dx, dy, map, withNpcs) {
-  if (dx && !tryMove(body, dx, 0, map, withNpcs)) nudgeThrough(body, dx, 0, map, withNpcs);
-  if (dy && !tryMove(body, 0, dy, map, withNpcs)) nudgeThrough(body, 0, dy, map, withNpcs);
-}
-
-  function solidAt(map, x, y) {
-    var tx = Math.floor(x / TILE);
-    var ty = Math.floor(y / TILE);
-    if (tx < 0 || ty < 0 || tx >= map.w || ty >= map.h) return true;
-    if (world.SOLID[map.rows[ty][tx]]) return true;
-    var gates = map.gates || [];
-    for (var i = 0; i < gates.length; i++) {
-      if (state.opened[gates[i].id]) continue;
-      var r = gateRect(gates[i]);
-      if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) return true;
-    }
-    return false;
+  function validName(name) {
+    var trimmed = String(name || "").replace(/\s+/g, " ").trim();
+    if (!/^[A-Za-z0-9][A-Za-z0-9 _-]{0,11}$/.test(trimmed) || trimmed.length < 2) return "";
+    return trimmed;
   }
 
-  function los(x0, y0, x1, y1, map) {
-    var dist = Math.hypot(x1 - x0, y1 - y0);
-    var steps = Math.ceil(dist / 7);
-    for (var i = 1; i < steps; i++) {
-      var t = i / steps;
-      if (solidAt(map, x0 + (x1 - x0) * t, y0 + (y1 - y0) * t)) return false;
-    }
-    return true;
-  }
-
-  function dirFrom(vx, vy, prev) {
-    if (Math.abs(vx) < 1 && Math.abs(vy) < 1) return prev;
-    if (Math.abs(vy) > Math.abs(vx)) return vy < 0 ? "up" : "down";
-    return vx < 0 ? "left" : "right";
-  }
-
-  function moveToward(body, cx, cy, speed, dt, map) {
-    var bx = body.x + body.w / 2;
-    var by = body.y + body.h / 2;
-    var dx = cx - bx;
-    var dy = cy - by;
-    var dist = Math.hypot(dx, dy) || 1;
-    var step = Math.min(speed * dt, dist);
-    var mx = (dx / dist) * step;
-    var my = (dy / dist) * step;
-    slide(body, mx, my, map, false);
-    body.vx = mx / dt;
-    body.vy = my / dt;
-  }
-
-  function updatePlayer(dt, map) {
-    var p = state.player;
-    if (p.dashT > 0) p.dashT -= dt;
-    if (p.dashCd > 0) p.dashCd -= dt;
-    if (p.iframes > 0) p.iframes -= dt;
-    if (wantDash) {
-      wantDash = false;
-      if (p.dashCd <= 0 && p.dashT <= 0) {
-        p.dashT = 0.16;
-        p.dashCd = 0.72;
-        p.dashDir = p.dir;
-        p.iframes = Math.max(p.iframes, 0.16);
-        tone(220, 0.07, "square", 0.025, 90);
-      }
-    }
-    var mx = 0;
-    var my = 0;
-    if (down("up")) my -= 1;
-    if (down("down")) my += 1;
-    if (down("left")) mx -= 1;
-    if (down("right")) mx += 1;
-    var len = Math.hypot(mx, my);
-    if (len > 0) { mx /= len; my /= len; }
-    var speed = 78;
-    if (state.inf > 72) speed *= 0.84;
-    var vx = mx * speed;
-    var vy = my * speed;
-    if (p.dashT > 0) {
-      var d = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] }[p.dashDir];
-      vx = d[0] * 176;
-      vy = d[1] * 176;
-      p.dir = p.dashDir;
-    } else if (mx || my) {
-      p.dir = dirFrom(vx, vy, p.dir);
-    }
-    p.moving = p.dashT > 0 || !!(mx || my);
-    if (p.moving) p.anim += dt * 8;
-    slide(p, vx * dt, vy * dt, map, true);
-    p.vx = vx;
-    p.vy = vy;
-  }
-
-  function updateEnemies(dt, map) {
-    var p = state.player;
-    var pcx = p.x + p.w / 2;
-    var pcy = p.y + p.h / 2;
-    for (var i = 0; i < state.enemies.length; i++) {
-      var e = state.enemies[i];
-      var ecx = e.x + e.w / 2;
-      var ecy = e.y + e.h / 2;
-      var dist = Math.hypot(pcx - ecx, pcy - ecy);
-      var see = dist < 96 && los(ecx, ecy, pcx, pcy, map);
-      if (e.mode === "patrol") {
-        var wp = e.route[e.wp];
-        if (Math.hypot(wp.x - ecx, wp.y - ecy) < 8) e.wp = (e.wp + 1) % e.route.length;
-        else moveToward(e, wp.x, wp.y, 32, dt, map);
-        if (see) { e.mode = "burst"; e.timer = 1.02; }
-      } else if (e.mode === "burst") {
-        e.timer -= dt;
-        moveToward(e, pcx, pcy, 104, dt, map);
-        if (e.timer <= 0) { e.mode = "rest"; e.timer = 1.2; e.vx = 0; e.vy = 0; }
-      } else {
-        e.timer -= dt;
-        e.vx = 0;
-        e.vy = 0;
-        if (e.timer <= 0) e.mode = "patrol";
-      }
-      e.moving = e.mode !== "rest";
-      e.dir = dirFrom(e.vx, e.vy, e.dir);
-      if (overlap(p, e) && p.iframes <= 0) {
-        var kx = p.x - e.x;
-        var ky = p.y - e.y;
-        var kd = Math.hypot(kx, ky) || 1;
-        slide(p, (kx / kd) * 12, (ky / kd) * 12, map, true);
-        state.hp = Math.max(0, state.hp - 16);
-        state.inf = Math.min(100, state.inf + 24);
-        p.iframes = 0.85;
-        state.shake = reduceMotion ? 0 : 0.18;
-        tone(110, 0.16, "sawtooth", 0.04, 50);
-        markSeen("rush", "Rushfever. They sprint, then they have to stop.");
-        if (state.hp <= 0) {
-          gameOver("You collapsed.");
-          return;
-        }
-        if (state.inf >= 100) {
-          gameOver("The infection meter filled.");
-          return;
-        }
-      }
-    }
-  }
-
-  function growSpore(field, map) {
-    if (field.cells.length >= field.max || !field.cells.length) return;
-    var allow = { ".": 1, ",": 1, "*": 1 };
-    for (var n = 0; n < 12; n++) {
-      var c = field.cells[(Math.random() * field.cells.length) | 0];
-      var dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
-      var d = dirs[(Math.random() * 4) | 0];
-      var nx = c[0] + d[0];
-      var ny = c[1] + d[1];
-      if (nx < 0 || ny < 0 || nx >= map.w || ny >= map.h) continue;
-      if (!allow[map.rows[ny][nx]]) continue;
-      var key = nx + "," + ny;
-      if (field.idx[key]) continue;
-      field.cells.push([nx, ny]);
-      field.idx[key] = 1;
-      return;
-    }
-  }
-
-  function updateSpores(dt) {
-    var field = state.spores[state.mapId];
-    var map = current();
-    if (!field || !map.spore) return;
-    field.acc += dt;
-    while (field.acc >= field.interval && field.cells.length < field.max) {
-      field.acc -= field.interval;
-      growSpore(field, map);
-    }
-  }
-
-  function hazeBox(h) {
-    var span;
-    var period;
-    var u;
-    var pos;
-    if (h.axis === "x") {
-      span = (h.maxTx - h.minTx) * TILE;
-      period = Math.max(1, span * 2);
-      u = ((state.time + h.phase) * h.speed) % period;
-      if (u < 0) u += period;
-      if (u > span) u = period - u;
-      pos = h.minTx * TILE + u;
-      return { x: pos, y: h.ty * TILE, w: h.tw * TILE, h: h.th * TILE };
-    }
-    span = (h.maxTy - h.minTy) * TILE;
-    period = Math.max(1, span * 2);
-    u = ((state.time + h.phase) * h.speed) % period;
-    if (u < 0) u += period;
-    if (u > span) u = period - u;
-    pos = h.minTy * TILE + u;
-    return { x: h.tx * TILE, y: pos, w: h.tw * TILE, h: h.th * TILE };
-  }
-
-  function updateExposure(dt, map) {
-    var body = state.player;
-    var rate = 0;
-    var labels = [];
-    var field = state.spores[map.id];
-    if (field) {
-      var x0 = Math.floor(body.x / TILE);
-      var y0 = Math.floor(body.y / TILE);
-      var x1 = Math.floor((body.x + body.w - 0.001) / TILE);
-      var y1 = Math.floor((body.y + body.h - 0.001) / TILE);
-      var on = false;
-      for (var y = y0; y <= y1 && !on; y++) {
-        for (var x = x0; x <= x1; x++) {
-          if (field.idx[x + "," + y]) { on = true; break; }
-        }
-      }
-      if (on) { rate += 12; labels.push("Sporeveil"); markSeen("spore", "Sporeveil is in the soil. Don't stand in it."); }
-    }
-    var hazes = map.hazes || [];
-    for (var i = 0; i < hazes.length; i++) {
-      if (overlap(body, hazeBox(hazes[i]))) {
-        rate += 20;
-        labels.push("Amberhaze");
-        markSeen("haze", "Amberhaze. It keeps a route. You can outrun a route.");
-        break;
-      }
-    }
-    state.exposed = labels.join(" + ");
-    if (rate > 0 && state.mask) rate *= 0.5;
-    if (rate > 0) state.inf = Math.min(100, state.inf + rate * dt);
-    else state.inf = Math.max(0, state.inf - (map.safe ? 14 : 5) * dt);
-  }
-
-  function checkItems(map) {
-    var pcx = state.player.x + state.player.w / 2;
-    var pcy = state.player.y + state.player.h / 2;
-    for (var i = 0; i < map.items.length; i++) {
-      var it = map.items[i];
-      if (state.picked[it.id]) continue;
-      var ix = it.tx * TILE + 8;
-      var iy = it.ty * TILE + 10;
-      if (Math.hypot(pcx - ix, pcy - iy) < 13) {
-        state.picked[it.id] = true;
-        burst(ix, iy);
-        grant(it.kind, it.name);
-      }
-    }
-  }
-
-  function tryOpenGate(gate) {
-    if (state.opened[gate.id]) return;
-    if (!state[gate.need]) {
-      if (state.hintT <= 0) {
-        toast(gate.locked);
-        state.hintT = 1.5;
-      }
-      return;
-    }
-    state.opened[gate.id] = true;
-    toast(gate.open);
-    tone(180, 0.08, "square", 0.03);
-    setTimeout(function () { tone(360, 0.1, "square", 0.03); }, 80);
-    checkpoint();
-    if (gate.to) beginTravel(gate.to, gate.sx, gate.sy);
-  }
-
-  function touchGates(map) {
-    var pad = { x: state.player.x - 2, y: state.player.y - 2, w: state.player.w + 4, h: state.player.h + 4 };
-    var gates = map.gates || [];
-    for (var i = 0; i < gates.length; i++) {
-      if (state.opened[gates[i].id]) continue;
-      if (overlap(pad, gateRect(gates[i]))) {
-        tryOpenGate(gates[i]);
-        return;
-      }
-    }
-  }
-
-  function beginTravel(id, tx, ty) {
-    if (fade || !world.maps[id]) return;
-    fade = { t: 0, mid: false, id: id, tx: tx, ty: ty };
-  }
-
-  function arrive(id, tx, ty) {
-    state.mapId = id;
-    var p = tileOrigin(tx, ty);
-    state.player.x = p.x;
-    state.player.y = p.y;
-    state.player.vx = 0;
-    state.player.vy = 0;
-    state.exitLock = 0.45;
-    state.talk = null;
-    spawnEnemies();
-    checkpoint();
-  }
-
-  function checkTransitions(map) {
-    if (fade || state.exitLock > 0) return;
-    var body = state.player;
-    for (var i = 0; i < map.exits.length; i++) {
-      if (overlap(body, exitRect(map.exits[i]))) {
-        beginTravel(map.exits[i].to, map.exits[i].sx, map.exits[i].sy);
-        return;
-      }
-    }
-    var gates = map.gates || [];
-    for (var g = 0; g < gates.length; g++) {
-      if (!state.opened[gates[g].id] || !gates[g].to) continue;
-      if (overlap(body, gateRect(gates[g]))) {
-        beginTravel(gates[g].to, gates[g].sx, gates[g].sy);
-        return;
-      }
-    }
-  }
-
-  function checkWin(map) {
-    if (!map.win || state.won || fade) return;
-    var pad = { x: map.win.tx * TILE, y: map.win.ty * TILE, w: map.win.tw * TILE, h: map.win.th * TILE };
-    if (overlap(state.player, pad)) {
-      state.won = true;
-      checkpoint();
-      mode = "win";
-      fanfare();
-    }
-  }
-
-  function gameOver(msg) {
-    if (mode === "over" || mode === "win") return;
-    mode = "over";
-    state.overMsg = msg;
-    tone(200, 0.25, "sawtooth", 0.04, 60);
-    setTimeout(function () { tone(90, 0.35, "triangle", 0.04); }, 180);
-  }
-
-  function doAction() {
-    if (fade || mode !== "play") return;
-    if (state.talk) { advanceTalk(); return; }
-    var map = current();
-    var pcx = state.player.x + state.player.w / 2;
-    var pcy = state.player.y + state.player.h / 2;
-    var best = null;
-    var bestD = 42;
-    for (var i = 0; i < map.npcs.length; i++) {
-      var b = npcBox(map.npcs[i]);
-      var d = Math.hypot(pcx - (b.x + b.w / 2), pcy - (b.y + b.h / 2));
-      if (d < bestD) { bestD = d; best = map.npcs[i]; }
-    }
-    if (best) { startTalk(best); return; }
-    var gates = map.gates || [];
-    for (var g = 0; g < gates.length; g++) {
-      var r = gateRect(gates[g]);
-      var cx = Math.max(r.x, Math.min(pcx, r.x + r.w));
-      var cy = Math.max(r.y, Math.min(pcy, r.y + r.h));
-      if (Math.hypot(pcx - cx, pcy - cy) < 24 && !state.opened[gates[g].id]) {
-        tryOpenGate(gates[g]);
-        return;
-      }
-    }
-  }
-
-  function startTalk(n) {
-    var lines = state.talked[n.id] ? n.again : n.lines;
-    state.talk = {
-      id: n.id,
-      name: n.name,
-      lines: lines,
-      i: 0,
-      grant: state.talked[n.id] ? null : n.grant
+  function makePlayer(x, y) {
+    return {
+      x: x, y: y, w: content.player.w, h: content.player.h,
+      vx: 0, vy: 0, facing: 1, onGround: true, climb: null,
+      drop: 0, coyote: 0, jumpBuf: 0, attack: 0, hurt: 0, frame: 0
     };
-    var b = npcBox(n);
-    var dx = (b.x + b.w / 2) - (state.player.x + 5);
-    var dy = (b.y + b.h / 2) - (state.player.y + 4);
-    state.player.dir = dirFrom(dx, dy, state.player.dir);
-    tone(520, 0.05, "triangle", 0.03);
   }
 
-  function advanceTalk() {
-    if (!state.talk) return;
-    state.talk.i += 1;
-    tone(460, 0.04, "triangle", 0.025);
-    if (state.talk.i >= state.talk.lines.length) {
-      var kind = state.talk.grant;
-      var id = state.talk.id;
-      state.talk = null;
-      state.talked[id] = true;
-      if (kind) grant(kind);
-      else checkpoint();
-      blurFocus();
+  function placeOn(mapId, x, y) {
+    map = mapById(mapId);
+    player.x = x;
+    player.y = y;
+    player.vx = 0;
+    player.vy = 0;
+    player.climb = null;
+    save.map = map.id;
+    save.x = x;
+    save.y = y;
+  }
+
+  function online() { return mode === "online" && ws && ws.readyState === 1; }
+
+  function send(msg) {
+    if (!online()) return;
+    try { ws.send(JSON.stringify(msg)); } catch (err) { /* closed */ }
+  }
+
+  function sendState() {
+    if (!online() || !player) return;
+    send({
+      t: "state",
+      map: map.id,
+      x: player.x,
+      y: player.y,
+      facing: player.facing,
+      vx: player.vx,
+      vy: player.vy,
+      anim: animName()
+    });
+  }
+
+  function animName() {
+    if (player.attack > 0) return "attack";
+    if (player.climb) return "climb";
+    if (!player.onGround) return "jump";
+    if (Math.abs(player.vx) > 1) return "walk";
+    return "idle";
+  }
+
+  function failConnect(reason) {
+    if (ws) {
+      ws.onclose = null;
+      try { ws.close(); } catch (err) { /* already closed */ }
+    }
+    ws = null;
+    mode = "offline";
+    $("connect").hidden = true;
+    if (!playing) begin(false);
+    toast(reason || "Playing offline.");
+    log("sys", reason || "Offline.");
+    syncHud();
+  }
+
+  function connect(name) {
+    var url = serverUrl();
+    if (!url) {
+      begin(false);
+      toast("No server is configured. Walking offline.");
+      log("sys", "Set serverUrl in assets/config.js to play with other people.");
+      return;
+    }
+    mode = "connecting";
+    $("connect").hidden = false;
+    $("connect-text").textContent = "Waking the server…";
+    $("title").hidden = true;
+    try { ws = new WebSocket(url); }
+    catch (err) {
+      failConnect("That server address could not be opened.");
+      return;
+    }
+    connectTimer = window.setTimeout(function () {
+      failConnect("The server did not answer. Walking offline.");
+    }, 20000);
+    ws.onopen = function () {
+      ws.send(JSON.stringify({
+        t: "join",
+        name: name,
+        map: save.map,
+        x: player.x,
+        y: player.y,
+        level: save.level
+      }));
+    };
+    ws.onmessage = function (ev) { onNet(ev.data); };
+    ws.onerror = function () { /* close follows */ };
+    ws.onclose = function () {
+      if (mode === "connecting") failConnect("Could not reach the server. Walking offline.");
+      else if (mode === "online") {
+        mode = "offline";
+        myId = null;
+        remotes = {};
+        netMonsters = [];
+        party = [];
+        people = [];
+        toast("Connection lost. You are offline.");
+        log("sys", "Connection lost. Monsters nearby are yours alone now.");
+        syncHud();
+      }
+    };
+  }
+
+  function onNet(raw) {
+    var msg;
+    try { msg = JSON.parse(raw); } catch (err) { return; }
+    if (msg.t === "reject") {
+      window.clearTimeout(connectTimer);
+      mode = "offline";
+      $("connect").hidden = true;
+      $("title").hidden = false;
+      if (ws) { ws.onclose = null; ws.close(); }
+      toast(msg.reason);
+      return;
+    }
+    if (msg.t === "welcome") {
+      window.clearTimeout(connectTimer);
+      mode = "online";
+      myId = msg.id;
+      $("connect").hidden = true;
+      if (!playing) begin(true);
+      log("sys", "Linked. Other travelers on this map can see you.");
+      toast("Online.");
+      syncHud();
+      return;
+    }
+    if (msg.t === "snap") applySnap(msg);
+    else if (msg.t === "fx") applyFx(msg);
+    else if (msg.t === "chat") log(msg.name === save.name ? "me" : "", msg.name + ": " + msg.text);
+    else if (msg.t === "sys") log("sys", msg.text);
+    else if (msg.t === "invite") {
+      $("invite").hidden = false;
+      $("invite-text").textContent = msg.from + " offers a party.";
+      $("invite").dataset.from = msg.fromId;
     }
   }
 
-  function useTonic() {
-    if (mode !== "play" || state.talk || fade) return;
-    if (state.tonics <= 0) { toast("No Field Tonic."); return; }
-    if (state.inf <= 0) { toast("No infection to clear."); return; }
-    state.tonics -= 1;
-    state.inf = Math.max(0, state.inf - 42);
-    toast("The tonic burns the fever down.");
-    tone(640, 0.12, "triangle", 0.035, 980);
-    checkpoint();
+  function applySnap(msg) {
+    var next = {};
+    people = [];
+    (msg.players || []).forEach(function (p) {
+      if (p.id === myId) return;
+      people.push(p);
+      var prev = remotes[p.id];
+      if (!prev) {
+        remotes[p.id] = { id: p.id, name: p.name, x: p.x, y: p.y, tx: p.x, ty: p.y, facing: p.facing, anim: p.anim, level: p.level, attacking: p.attacking };
+      } else {
+        prev.tx = p.x;
+        prev.ty = p.y;
+        if (document.hidden) { prev.x = p.x; prev.y = p.y; }
+        prev.facing = p.facing;
+        prev.anim = p.anim;
+        prev.level = p.level;
+        prev.attacking = p.attacking;
+        prev.name = p.name;
+        next[p.id] = prev;
+      }
+      if (!prev) next[p.id] = remotes[p.id];
+    });
+    Object.keys(remotes).forEach(function (id) {
+      if (!next[id]) delete remotes[id];
+    });
+    netMonsters = msg.monsters || [];
+    party = msg.party || [];
+    renderLists();
   }
 
-  function useRation() {
-    if (mode !== "play" || state.talk || fade) return;
-    if (state.rations <= 0) { toast("No supplies."); return; }
-    if (state.hp >= 100) { toast("You are not hurt."); return; }
-    state.rations -= 1;
-    state.hp = Math.min(100, state.hp + 36);
-    toast("Supplies. You can stand straighter.");
-    tone(420, 0.1, "triangle", 0.03, 560);
-    checkpoint();
-  }
-
-  function questText() {
-    if (state.hp < 30) return "You can barely stand. Use supplies, I or the Supply button.";
-    if (state.inf > 78) return "Infection is critical. Drink a Field Tonic or find clean ground.";
-    if (!state.mask) return "Find Dr. Lumen in the west clinic.";
-    if (!state.rust) return "Whisperwood, north of Ashfen, hides the Rust Key. Don't linger in Sporeveil.";
-    if (!state.opened["mill-door"]) return "The Rust Key opens the Old Mill storeroom, west of Ashfen.";
-    if (!state.cord) return "Glassport's north clinic holds the Cord Key. Rushfever rests between sprints.";
-    if (!state.seal) return "The Field Lab, east of the cordon, holds the Haven Seal. Mind the Amberhaze.";
-    if (!state.opened["haven-gate"]) return "Fit the Haven Seal to the south gate of the cordon.";
-    if (!state.won) return "Step onto the pale stone in Safe Haven.";
-    return "The haven air is clean.";
-  }
-
-  function fmt(t) {
-    var s = Math.max(0, t | 0);
-    var m = (s / 60) | 0;
-    var r = s % 60;
-    return m + ":" + (r < 10 ? "0" : "") + r;
-  }
-
-  function down(name) { return !!(keyHeld[name] || padHeld[name]); }
-
-function groundKind(theme, ch) {
-  if (ch === "d") return "door";
-  if (ch === ",") return "path";
-  if (ch === "i") {
-      if (theme === "lab") return "tile";
-      if (theme === "woods") return "stone";
-      if (theme === "city") return "plaster";
-      return "wood";
+  function applyFx(msg) {
+    if (msg.type === "mdmg") {
+      floaters.push({ x: msg.x, y: msg.y - 8, text: String(msg.amount), t: 0.7, color: "#f4f0e4" });
+      if (msg.killed && msg.who === myId) { /* reward message follows */ }
+    } else if (msg.type === "pdmg" && msg.who === myId) {
+      save.hp = Math.max(0, save.hp - msg.amount);
+      save.infection = clamp(save.infection + (msg.infection || 0), 0, 100);
+      player.vy = -120;
+      player.hurt = 0.6;
+      floaters.push({ x: player.x, y: player.y - 10, text: String(msg.amount), t: 0.7, color: "#e15d6a" });
+      if (save.hp <= 0) collapse();
+    } else if (msg.type === "reward" && msg.who === myId) {
+      save.notes += msg.notes || 0;
+      if (!msg.shared) {
+        save.kills[msg.kind] = (save.kills[msg.kind] || 0) + 1;
+        noteKill(msg.kind);
+      }
+      addExp(msg.exp || 0);
+      if (msg.notes) toast("+" + msg.notes + " notes");
+      persist();
     }
-    if (theme === "town" || theme === "city") return "cobble";
-    if (theme === "mill" || theme === "cordon") return "dirt";
-    if (theme === "lab") return "tile";
-    return "grass";
   }
 
-  function propKind(ch) {
-    if (ch === "#") return "wall";
-    if (ch === "w") return "water";
-    if (ch === "t") return "tree";
-    if (ch === "f") return "fence";
-    if (ch === "c") return "crate";
-    if (ch === "b") return "bench";
-    if (ch === "=") return "barricade";
-    if (ch === "l") return "lamp";
-    if (ch === "o") return "block";
+  function addExp(amount) {
+    save.exp += amount;
+    var leveled = false;
+    var need = PRSim.expToNext(content, save.level);
+    while (save.exp >= need && save.level < 50) {
+      save.exp -= need;
+      save.level += 1;
+      save.hp = maxHp();
+      need = PRSim.expToNext(content, save.level);
+      leveled = true;
+    }
+    if (leveled) {
+      toast("Level " + save.level);
+      blip(660, 0.12);
+      if (online()) send({ t: "progress", level: save.level });
+    }
+  }
+
+  function collapse() {
+    var spawn = map.spawn;
+    save.hp = Math.max(1, Math.round(maxHp() * 0.55));
+    save.infection = 15;
+    placeOn(map.id, spawn.x, spawn.y);
+    toast("You collapsed and woke by the arch.");
+    persist();
+  }
+
+  function begin(isOnline) {
+    playing = true;
+    $("title").hidden = true;
+    $("connect").hidden = true;
+    mode = isOnline ? "online" : "offline";
+    canvas.focus();
+    syncHud();
+  }
+
+  function held(name) {
+    return !!(keys[name] || pad[name]);
+  }
+
+  function pressed(name) {
+    var down = held(name);
+    if (down && !edges[name]) {
+      edges[name] = true;
+      return true;
+    }
+    if (!down) edges[name] = false;
+    return false;
+  }
+
+  function consume(name) {
+    if (taps[name]) {
+      taps[name] = false;
+      edges[name] = true;
+      return true;
+    }
+    return pressed(name);
+  }
+
+  function bodyOverlap(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  function zoneBox(z) {
+    if (!z.drift) return z;
+    return {
+      x: z.x + Math.sin(animTime * z.drift + (z.phase || 0)) * (z.amp || 0),
+      y: z.y,
+      w: z.w,
+      h: z.h
+    };
+  }
+
+  function ladderHere() {
+    var cx = player.x + player.w / 2;
+    var list = map.ladders || [];
+    for (var i = 0; i < list.length; i++) {
+      var ladder = list[i];
+      if (cx >= ladder.x - 4 && cx <= ladder.x + ladder.w + 4 && player.y < ladder.y + ladder.h && player.y + player.h > ladder.y - 4) {
+        return ladder;
+      }
+    }
     return null;
   }
 
-function needsFloor(ch) {
-  return ch === "t" || ch === "f" || ch === "c" || ch === "b" || ch === "l" || ch === "*" || ch === "." || ch === "," || ch === "i" || ch === "d";
-}
+  function nearNpc() {
+    var best = null;
+    var bestD = 42;
+    (map.npcs || []).forEach(function (npc) {
+      var dx = (npc.x + 8) - (player.x + player.w / 2);
+      var dy = (npc.y + 10) - (player.y + player.h / 2);
+      var dist = Math.hypot(dx, dy);
+      if (dist < bestD) { bestD = dist; best = npc; }
+    });
+    return best;
+  }
 
-  function render() {
-    var map = current();
-    var theme = map.theme;
-    var px = state.player.x + state.player.w / 2;
-    var py = state.player.y + state.player.h / 2;
-    var camX = px - VW / 2;
-    var camY = py - VH / 2;
-    var mw = map.w * TILE;
-    var mh = map.h * TILE;
-    camX = mw > VW ? clamp(camX, 0, mw - VW) : (mw - VW) / 2;
-    camY = mh > VH ? clamp(camY, 0, mh - VH) : (mh - VH) / 2;
-    if (state.shake > 0 && !reduceMotion) {
-      var mag = state.shake * 20;
-      camX += (Math.random() - 0.5) * mag;
-      camY += (Math.random() - 0.5) * mag;
+  function stepPlayer(dt) {
+    var phys = content.physics;
+    if (player.drop > 0) player.drop -= dt;
+    if (player.attack > 0) player.attack -= dt;
+    if (player.hurt > 0) player.hurt -= dt;
+    if (portalLock > 0) portalLock -= dt;
+    var jumpEdge = consume("jump");
+    var upEdge = consume("up");
+    var ladder = ladderHere();
+
+    if (!uiLock && upEdge && player.onGround) {
+      var npc = nearNpc();
+      if (npc) { openDialog(npc); return; }
     }
-    camX = Math.round(camX);
-    camY = Math.round(camY);
-    var waterFrame = ((animTime * 3) | 0) % 4;
-    var sporeFrame = ((animTime * 5) | 0) % 4;
-    var lampFrame = ((animTime * 4) | 0) % 2;
-    ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = "#102018";
-    ctx.fillRect(0, 0, VW, VH);
-    var x0 = Math.max(0, Math.floor(camX / TILE) - 1);
-    var y0 = Math.max(0, Math.floor(camY / TILE) - 1);
-    var x1 = Math.min(map.w - 1, Math.floor((camX + VW) / TILE) + 1);
-    var y1 = Math.min(map.h - 1, Math.floor((camY + VH) / TILE) + 1);
-    var field = state.spores[map.id];
-    var queue = [];
-    for (var y = y0; y <= y1; y++) {
-      var row = map.rows[y];
-      for (var x = x0; x <= x1; x++) {
-        var ch = row[x];
-        var sx = x * TILE - camX;
-        var sy = y * TILE - camY;
-        if (needsFloor(ch)) {
-          var gk = ch === "*" ? "flower" : groundKind(theme, ch);
-          ctx.drawImage(getTile(theme, gk, hash(x, y) % 3, 0), sx, sy);
-        }
-        if (field && field.idx[x + "," + y]) ctx.drawImage(gfx.spore[sporeFrame], sx, sy);
-        var pk = propKind(ch);
-        if (!pk) continue;
-        (function (px0, py0, kind, vx, vy) {
-          queue.push({
-            y: (vy + 1) * TILE,
-            z: 0,
-            draw: function () {
-              if (kind === "tree") ctx.drawImage(gfx.trees[hash(vx, vy) % 3], px0, py0 - 4);
-              else if (kind === "water") ctx.drawImage(getTile(theme, "water", 0, waterFrame), px0, py0);
-              else if (kind === "lamp") ctx.drawImage(getTile(theme, "lamp", 0, lampFrame), px0, py0);
-              else ctx.drawImage(getTile(theme, kind, hash(vx, vy) % 3, 0), px0, py0);
-            }
-          });
-        })(sx, sy, pk, x, y);
-      }
-    }
-    (map.gates || []).forEach(function (g) {
-      if (state.opened[g.id]) return;
-      for (var gy = 0; gy < g.th; gy++) {
-        for (var gx = 0; gx < g.tw; gx++) {
-          (function (dx, dy, odd) {
-            queue.push({
-              y: (g.ty + dy + 1) * TILE,
-              z: 0,
-              draw: function () {
-                var img = gfx.door;
-                if (odd) {
-                  ctx.save();
-                  ctx.translate((g.tx + dx) * TILE - camX + TILE, (g.ty + dy) * TILE - camY);
-                  ctx.scale(-1, 1);
-                  ctx.drawImage(img, 0, 0);
-                  ctx.restore();
-                } else {
-                  ctx.drawImage(img, (g.tx + dx) * TILE - camX, (g.ty + dy) * TILE - camY);
-                }
-              }
-            });
-          })(gx, gy, gx % 2 === 1);
+
+    if (player.climb) {
+      if (!ladder) player.climb = null;
+      else if (!uiLock && (held("left") || held("right") || jumpEdge)) {
+        player.facing = held("left") ? -1 : 1;
+        player.climb = null;
+        player.vx = (held("left") ? -1 : held("right") ? 1 : player.facing) * phys.speed;
+        player.vy = jumpEdge ? phys.jump * 0.72 : 0;
+      } else {
+        player.vx = 0;
+        player.vy = 0;
+        player.x = ladder.x + ladder.w / 2 - player.w / 2;
+        if (!uiLock && held("up")) player.vy = -phys.climb;
+        else if (!uiLock && held("down")) player.vy = phys.climb;
+        if (player.y + player.h <= ladder.deck + 16) {
+          player.climb = null;
+          player.y = ladder.deck - player.h;
+          player.vy = 0;
+          player.onGround = true;
         }
       }
-    });
-    map.npcs.forEach(function (n) {
-      var b = npcBox(n);
-      queue.push({
-        y: b.y + b.h,
-        z: 1,
-        draw: function () {
-          var img = n.kind === "sign" ? gfx.sign : gfx.npc[n.id][reduceMotion ? 0 : ((animTime * 2) | 0) % 2];
-          var dx = b.x - 3 - camX;
-          var dy = b.y - 8 - camY;
-          ctx.fillStyle = "rgba(0,0,0,0.35)";
-          ctx.fillRect(b.x - camX, b.y + b.h - 2 - camY, b.w, 2);
-          ctx.drawImage(img, dx, dy);
-          if (!state.talked[n.id]) {
-            ctx.fillStyle = "#f0b429";
-            ctx.fillRect(dx + 7, dy - 4, 2, 2);
-            ctx.fillRect(dx + 7, dy - 1, 2, 1);
-          }
-        }
-      });
-    });
-    map.items.forEach(function (it) {
-      if (state.picked[it.id]) return;
-      var bob = reduceMotion ? 0 : (((Math.sin(animTime * 3 + it.tx) + 1) * 1.2) | 0);
-      queue.push({
-        y: it.ty * TILE + 16,
-        z: 1,
-        draw: function () {
-          ctx.drawImage(gfx.items[it.kind] || gfx.items.ration, it.tx * TILE - camX, it.ty * TILE - 2 - bob - camY);
-        }
-      });
-    });
-    state.enemies.forEach(function (e) {
-      queue.push({
-        y: e.y + e.h,
-        z: 1,
-        draw: function () {
-          var set = gfx.enemy[e.dir] || gfx.enemy.down;
-          var frame = e.moving ? ((animTime * 8) | 0) % 2 : 0;
-          var lean = e.mode === "burst" ? (e.dir === "left" ? -1 : e.dir === "right" ? 1 : 0) : 0;
-          var leanY = e.mode === "burst" ? (e.dir === "up" ? -1 : e.dir === "down" ? 1 : 0) : 0;
-          ctx.fillStyle = "rgba(0,0,0,0.35)";
-          ctx.fillRect(e.x - camX, e.y + e.h - 2 - camY, e.w, 2);
-          if (e.mode === "rest") ctx.globalAlpha = 0.78;
-          ctx.drawImage(set[frame], e.x - 2 + lean - camX, e.y - 8 + leanY - camY);
-          ctx.globalAlpha = 1;
-        }
-      });
-    });
-    var blink = state.player.iframes > 0 && (((animTime * 18) | 0) % 2 === 0);
-    if (!blink) {
-      queue.push({
-        y: state.player.y + state.player.h,
-        z: 2,
-        draw: function () {
-          var set = gfx.hero[state.player.dir] || gfx.hero.down;
-          var frame = state.player.moving ? (state.player.anim | 0) % 2 : 0;
-          ctx.fillStyle = "rgba(0,0,0,0.35)";
-          ctx.fillRect(state.player.x - camX, state.player.y + state.player.h - 2 - camY, state.player.w, 2);
-          ctx.drawImage(set[frame], state.player.x - 3 - camX, state.player.y - 8 - camY);
-        }
-      });
+    } else if (!uiLock && ladder && held("up")) {
+      player.climb = ladder;
+      player.x = ladder.x + ladder.w / 2 - player.w / 2;
+      player.vx = 0;
+      player.vy = -phys.climb;
+    } else if (!uiLock && ladder && held("down") && player.onGround && player.y + player.h <= ladder.y + 8) {
+      player.climb = ladder;
+      player.drop = 0.2;
+      player.y += 4;
+      player.vx = 0;
     }
-    queue.sort(function (a, b) { return a.y - b.y || a.z - b.z; });
-    for (var q = 0; q < queue.length; q++) queue[q].draw();
-    var hazes = map.hazes || [];
-    for (var h = 0; h < hazes.length; h++) {
-      var box = hazeBox(hazes[h]);
-      ctx.globalAlpha = 0.72;
-      ctx.drawImage(gfx.haze, box.x - camX, box.y - camY, box.w, box.h);
-      ctx.globalAlpha = 1;
+
+    if (!player.climb && !uiLock) {
+      if (held("left")) { player.vx = -phys.speed; player.facing = -1; }
+      else if (held("right")) { player.vx = phys.speed; player.facing = 1; }
+      else player.vx = 0;
+      if (player.onGround) player.coyote = 0.1;
+      else player.coyote -= dt;
+      if (jumpEdge) player.jumpBuf = 0.12;
+      else player.jumpBuf -= dt;
+      if (player.jumpBuf > 0 && player.coyote > 0) {
+        if (held("down")) {
+          player.drop = 0.22;
+          player.vy = 60;
+        } else player.vy = phys.jump;
+        player.jumpBuf = 0;
+        player.coyote = 0;
+        player.onGround = false;
+      }
+      player.vy = Math.min(phys.fall, player.vy + phys.gravity * dt);
     }
-    for (var pi = 0; pi < particles.length; pi++) {
-      var part = particles[pi];
-      ctx.fillStyle = part.c;
-      ctx.fillRect(Math.round(part.x - camX), Math.round(part.y - camY), 2, 2);
-    }
-    if (state.inf > 45) {
-      var a = Math.min(0.5, (state.inf - 45) / 130);
-      ctx.fillStyle = "rgba(110, 36, 160, " + a + ")";
-      ctx.fillRect(0, 0, 12, VH);
-      ctx.fillRect(VW - 12, 0, 12, VH);
-      ctx.fillRect(0, 0, VW, 8);
-      ctx.fillRect(0, VH - 8, VW, 8);
-    }
-    if (state.hp < 30) {
-      ctx.fillStyle = "rgba(180, 32, 48, 0.28)";
-      ctx.fillRect(0, 0, 6, VH);
-      ctx.fillRect(VW - 6, 0, 6, VH);
-    }
-    if (fade) {
-      var ft = fade.t < 0.5 ? fade.t * 2 : Math.max(0, (1 - fade.t) * 2);
-      ctx.fillStyle = "rgba(6, 8, 7, " + ft + ")";
-      ctx.fillRect(0, 0, VW, VH);
+
+    var prevFeet = player.y + player.h;
+    player.x += player.vx * dt;
+    resolveWalls();
+    player.y += player.vy * dt;
+    player.onGround = false;
+    resolveGround(prevFeet);
+    if (player.x < 0) player.x = 0;
+    if (player.x + player.w > map.width) player.x = map.width - player.w;
+    if (player.y > map.height + 30) collapse();
+    if (Math.abs(player.vx) > 1 && player.onGround) player.frame += dt * 8;
+    tryPortal();
+  }
+
+  function resolveWalls() {
+    var solids = map.solids || [];
+    for (var i = 0; i < solids.length; i++) {
+      var s = solids[i];
+      if (s.oneWay) continue;
+      if (player.y + player.h <= s.y + 8) continue;
+      if (!bodyOverlap(player, s)) continue;
+      if (player.vx > 0) player.x = s.x - player.w;
+      else if (player.vx < 0) player.x = s.x + s.w;
+      else if (player.x + player.w / 2 < s.x + s.w / 2) player.x = s.x - player.w;
+      else player.x = s.x + s.w;
+      player.vx = 0;
     }
   }
 
-  function sync() {
-    var map = current();
-    $("area").textContent = map.name;
-    $("hp-n").textContent = String(Math.ceil(state.hp));
-    $("inf-n").textContent = String(Math.ceil(state.inf));
-    $("hp-bar").style.width = clamp(state.hp, 0, 100) + "%";
-    $("inf-bar").style.width = clamp(state.inf, 0, 100) + "%";
-    $("exposed").textContent = state.exposed || "";
-    var hot = state.inf > 72;
-    $("inf-bar").parentElement.parentElement.classList.toggle("hot", hot);
-    $("tonic-n").textContent = String(state.tonics);
-    $("ration-n").textContent = String(state.rations);
-    $("use-tonic").disabled = state.tonics <= 0;
-    $("use-ration").disabled = state.rations <= 0;
-    var bits = [];
-    if (state.mask) bits.push("Mask");
-    if (state.rust) bits.push("Rust");
-    if (state.cord) bits.push("Cord");
-    if (state.seal) bits.push("Seal");
-    $("keys").textContent = bits.length ? bits.join(" · ") : "No keys";
-    $("dash-state").textContent = state.player.dashCd <= 0 ? "Dash ready" : "Dash";
-    if (state.talk) {
-      $("speaker").hidden = false;
-      $("speaker").textContent = state.talk.name;
-      $("line").textContent = state.talk.lines[state.talk.i] || "";
-      $("next").hidden = false;
-    } else {
-      $("speaker").hidden = true;
-      $("speaker").textContent = "";
-      $("line").textContent = mode === "play" || mode === "pause" ? questText() : "Three fictional plagues. Reach Safe Haven before the meter fills.";
-      $("next").hidden = true;
+  function resolveGround(prevFeet) {
+    var solids = map.solids || [];
+    var feet = player.y + player.h;
+    for (var i = 0; i < solids.length; i++) {
+      var s = solids[i];
+      var overlapX = player.x + 2 < s.x + s.w && player.x + player.w - 2 > s.x;
+      if (!overlapX) continue;
+      if (s.oneWay) {
+        if (player.drop > 0 || player.vy < 0 || player.climb) continue;
+        if (prevFeet <= s.y + 3 && feet >= s.y && feet <= s.y + 18) {
+          player.y = s.y - player.h;
+          player.vy = 0;
+          player.onGround = true;
+        }
+      } else if (player.vy >= 0 && player.y < s.y && feet >= s.y && prevFeet <= s.y + 6) {
+        player.y = s.y - player.h;
+        player.vy = 0;
+        player.onGround = true;
+      }
     }
+  }
+
+  function tryPortal() {
+    if (portalLock > 0 || uiLock) return;
+    var portals = map.portals || [];
+    for (var i = 0; i < portals.length; i++) {
+      var portal = portals[i];
+      if (!bodyOverlap(player, portal)) continue;
+      portalLock = 0.75;
+      placeOn(portal.to, portal.toX, portal.toY);
+      toast(map.name);
+      persist();
+      sendState();
+      return;
+    }
+  }
+
+  function monsters() {
+    return online() ? netMonsters : (rooms[map.id] || (rooms[map.id] = PRSim.makeMonsters(map, content)));
+  }
+
+  function stepOffline(dt) {
+    if (online() || uiLock) return;
+    var list = monsters();
+    var hurts = PRSim.stepMonsters(list, [{
+      id: "local",
+      map: map.id,
+      x: player.x,
+      y: player.y,
+      w: player.w,
+      h: player.h
+    }], dt, animTime * 1000, content);
+    if (player.hurt > 0) return;
+    hurts.forEach(function (hurt) {
+      player.hurt = 0.7;
+      player.vy = -120;
+      save.hp = Math.max(0, save.hp - hurt.amount);
+      save.infection = clamp(save.infection + hurt.infection, 0, 100);
+      floaters.push({ x: player.x, y: player.y - 8, text: String(hurt.amount), t: 0.7, color: "#e15d6a" });
+      if (save.hp <= 0) collapse();
+    });
+  }
+
+  function stepZones(dt) {
+    var rate = 0;
+    (map.zones || []).forEach(function (zone) {
+      if (bodyOverlap(player, zoneBox(zone))) rate += zone.dps || 8;
+    });
+    if (save.mask && rate > 0) rate *= 0.5;
+    if (rate > 0) save.infection = clamp(save.infection + rate * dt, 0, 100);
+    else save.infection = Math.max(0, save.infection - 5 * dt);
+    if (save.infection >= 100) {
+      save.hp = Math.max(0, save.hp - 8 * dt);
+      if (save.hp <= 0) collapse();
+    }
+  }
+
+  function tryAttack() {
+    if (uiLock || player.attack > 0 || attackLock > 0) return;
+    player.attack = 0.18;
+    attackLock = 0.42;
+    blip(210, 0.05);
+    if (online()) {
+      sendState();
+      send({ t: "attack" });
+      return;
+    }
+    var hits = PRSim.applyAttack(monsters(), {
+      map: map.id,
+      x: player.x,
+      y: player.y,
+      w: player.w,
+      h: player.h,
+      facing: player.facing,
+      level: save.level
+    }, animTime * 1000, content);
+    hits.forEach(function (hit) {
+      floaters.push({ x: hit.x, y: hit.y - 6, text: String(hit.amount), t: 0.7, color: "#f4f0e4" });
+      if (hit.killed) {
+        var kind = content.kinds[hit.kind];
+        save.kills[hit.kind] = (save.kills[hit.kind] || 0) + 1;
+        save.notes += kind.notes;
+        addExp(kind.exp);
+        toast(hit.kind + " down. +" + kind.notes + " notes");
+        noteKill(hit.kind);
+        persist();
+      }
+    });
+  }
+
+  function useTonic() {
+    if (uiLock) return;
+    if (save.tonics <= 0) { toast("No Field Tonic."); return; }
+    if (save.hp >= maxHp() && save.infection <= 0) { toast("You don't need a tonic."); return; }
+    save.tonics -= 1;
+    save.hp = Math.min(maxHp(), save.hp + 30);
+    save.infection = Math.max(0, save.infection - 25);
+    toast("The tonic burns the fever down.");
+    blip(640, 0.08);
+    persist();
+  }
+
+  function useBandage() {
+    if (save.hp >= maxHp()) { toast("You are not hurt."); return false; }
+    save.hp = Math.min(maxHp(), save.hp + 22);
+    toast("Bandage.");
+    persist();
+    return true;
+  }
+
+  function questReady(id) {
+    if (!save || !save.quests || save.quests[id] === "done") return false;
+    if (id === "sol") return !!save.mask;
+    var quest = content.quests[id];
+    if (!quest || !quest.need) return false;
+    return Object.keys(quest.need).every(function (key) {
+      return (save.kills[key] || 0) >= quest.need[key];
+    });
+  }
+
+  function completeQuest(id) {
+    var quest = content.quests[id];
+    if (!quest || save.quests[id] === "done") return;
+    save.quests[id] = "done";
+    var reward = quest.reward || {};
+    if (reward.mask) save.mask = true;
+    if (reward.notes) save.notes += reward.notes;
+    if (reward.tonics) save.tonics += reward.tonics;
+    if (reward.exp) addExp(reward.exp);
+    if (id === "sol") save.haven = true;
+    toast(quest.title + " complete.");
+    persist();
+  }
+
+  function noteKill(kind) {
+    var questId = kind === "sporeling" ? "lumen" : kind === "mite" ? "ilya" : "";
+    if (!questId || save.quests[questId] === "done") return;
+    var need = content.quests[questId].need[kind];
+    if ((save.kills[kind] || 0) === need) toast(content.quests[questId].title + " is ready to turn in.");
+  }
+
+  function tracker() {
+    if (questReady("lumen") || save.quests.lumen !== "done") {
+      var need = content.quests.lumen.need.sporeling;
+      if (save.quests.lumen === "done") {
+        if (save.quests.ilya !== "done") {
+          var mites = content.quests.ilya.need.mite;
+          return "Amber mites " + Math.min(mites, save.kills.mite || 0) + "/" + mites;
+        }
+        if (!save.haven) return "Reach Safe Haven";
+        return "The air is clean";
+      }
+      return "Sporelings " + Math.min(need, save.kills.sporeling || 0) + "/" + need;
+    }
+    return "The air is clean";
+  }
+
+  function openDialog(npc) {
+    var lines = npc.lines.slice();
+    if (npc.quest && questReady(npc.quest)) {
+      lines = (npc.ready || npc.lines).slice();
+      completeQuest(npc.quest);
+    } else if (npc.quest && (save.quests[npc.quest] === "done" || (npc.quest === "sol" && save.haven))) {
+      lines = (npc.done || npc.lines).slice();
+    }
+    dialog = { npc: npc, lines: lines, i: 0 };
+    uiLock = true;
+    $("dialog").hidden = false;
+    $("dlg-shop").hidden = !npc.shop;
+    showDialogLine();
+  }
+
+  function showDialogLine() {
+    if (!dialog) return;
+    $("dlg-name").textContent = dialog.npc.name;
+    $("dlg-line").textContent = dialog.lines[dialog.i] || "";
+    $("dlg-next").textContent = dialog.i < dialog.lines.length - 1 ? "Next" : "Close";
+  }
+
+  function closeDialog() {
+    dialog = null;
+    uiLock = false;
+    $("dialog").hidden = true;
+    canvas.focus();
+  }
+
+  function openShop() {
+    closeDialog();
+    uiLock = true;
+    $("shop").hidden = false;
+    renderShop();
+  }
+
+  function closeShop() {
+    uiLock = false;
+    $("shop").hidden = true;
+    canvas.focus();
+  }
+
+  function renderShop() {
+    $("shop-notes").textContent = save.notes + " notes · tonics " + save.tonics + (save.mask ? " · mask on" : "");
+    var list = $("shop-list");
+    list.textContent = "";
+    content.shop.forEach(function (item) {
+      var row = document.createElement("div");
+      row.className = "shop-row";
+      var copy = document.createElement("p");
+      copy.textContent = item.name + " — " + item.cost + " notes. " + item.blurb;
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "Buy";
+      btn.addEventListener("click", function () { buy(item); });
+      row.appendChild(copy);
+      row.appendChild(btn);
+      list.appendChild(row);
+    });
+  }
+
+  function buy(item) {
+    if (save.notes < item.cost) { toast("Not enough notes."); return; }
+    if (item.id === "tonic" && save.tonics >= 12) { toast("Your pockets are full of tonics."); return; }
+    save.notes -= item.cost;
+    if (item.id === "tonic") save.tonics += 1;
+    if (item.id === "bandage") {
+      if (!useBandage()) {
+        save.notes += item.cost;
+        return;
+      }
+    }
+    toast("Bought " + item.name + ".");
+    persist();
+    renderShop();
+    syncHud();
+  }
+
+  function renderLists() {
+    var pSig = party.map(function (m) { return m.id + ":" + m.map; }).join("|");
+    if (pSig !== partySig) {
+      partySig = pSig;
+      var ul = $("party-list");
+      ul.textContent = "";
+      if (!party.length) {
+        var empty = document.createElement("li");
+        empty.textContent = online() ? "Just you" : "Offline";
+        ul.appendChild(empty);
+      }
+      party.forEach(function (member) {
+        var li = document.createElement("li");
+        li.textContent = member.name + (member.id === myId ? " (you)" : "") + " · " + member.map;
+        ul.appendChild(li);
+      });
+    }
+    var oSig = people.map(function (p) { return p.id; }).join("|");
+    if (oSig !== peopleSig) {
+      peopleSig = oSig;
+      var box = $("people");
+      box.textContent = "";
+      if (!people.length) {
+        var none = document.createElement("li");
+        none.textContent = "No one else";
+        box.appendChild(none);
+      }
+      people.forEach(function (p) {
+        var li = document.createElement("li");
+        li.textContent = p.name + " ";
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.textContent = "Invite";
+        btn.dataset.name = p.name;
+        li.appendChild(btn);
+        box.appendChild(li);
+      });
+    }
+  }
+
+  function syncHud() {
+    if (!save || !map) return;
+    $("area").textContent = map.name;
+    $("who").textContent = save.name + (save.mask ? " · mask" : "") + " · tonic " + save.tonics;
+    $("hp-n").textContent = String(Math.ceil(save.hp));
+    $("inf-n").textContent = String(Math.ceil(save.infection));
+    $("lv-n").textContent = "Lv " + save.level;
+    var need = PRSim.expToNext(content, save.level);
+    $("exp-n").textContent = save.exp + "/" + need;
+    $("hp-bar").style.width = clamp(save.hp / maxHp() * 100, 0, 100) + "%";
+    $("inf-bar").style.width = clamp(save.infection, 0, 100) + "%";
+    $("exp-bar").style.width = clamp(save.exp / need * 100, 0, 100) + "%";
+    $("notes").textContent = save.notes + " notes";
+    $("quest").textContent = tracker();
+    var pill = $("mode-pill");
+    pill.textContent = mode === "online" ? "Online" : "Offline";
+    pill.classList.toggle("online", mode === "online");
     if (toasts.length) {
       $("toast").hidden = false;
-      $("toast").textContent = toasts[0].msg;
-    } else {
-      $("toast").hidden = true;
+      $("toast").textContent = toasts[0].text;
+    } else $("toast").hidden = true;
+  }
+
+  function draw() {
+    var view = content.view;
+    var camX = player && playing ? player.x + player.w / 2 - view.w / 2 : 80;
+    var camY = player && playing ? player.y + player.h / 2 - view.h / 2 : 20;
+    var shown = playing ? map : mapById("ashfen");
+    camX = shown.width > view.w ? clamp(camX, 0, shown.width - view.w) : 0;
+    camY = shown.height > view.h ? clamp(camY, 0, shown.height - view.h) : 0;
+    camX = Math.round(camX);
+    camY = Math.round(camY);
+    ctx.imageSmoothingEnabled = false;
+    var sky = ctx.createLinearGradient(0, 0, 0, view.h);
+    sky.addColorStop(0, shown.sky[0]);
+    sky.addColorStop(1, shown.sky[1]);
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, view.w, view.h);
+    drawScenery(shown, camX, camY);
+    (shown.solids || []).forEach(function (s) { drawSolid(shown, s, camX, camY); });
+    (shown.ladders || []).forEach(function (ladder) { drawLadder(ladder, camX, camY); });
+    (shown.zones || []).forEach(function (zone) { drawZone(zoneBox(zone), camX, camY); });
+    (shown.portals || []).forEach(function (portal) { drawPortal(portal, camX, camY); });
+    (shown.npcs || []).forEach(function (npc) { drawNpc(npc, camX, camY); });
+    var mobs = playing && shown.id === map.id ? monsters() : [];
+    mobs.forEach(function (mob) {
+      if (mob.alive === false || mob.hp <= 0) return;
+      drawMonster(mob, camX, camY);
+    });
+    if (playing) {
+      Object.keys(remotes).forEach(function (id) {
+        var remote = remotes[id];
+        remote.x += (remote.tx - remote.x) * 0.4;
+        remote.y += (remote.ty - remote.y) * 0.4;
+        drawActor(remote.x + content.player.w / 2, remote.y + content.player.h, {
+          facing: remote.facing, anim: remote.attacking ? "attack" : remote.anim, frame: animTime * 8, scarf: tint(remote.name)
+        }, camX, camY);
+        nameplate(remote.name, remote.x + 7, remote.y, camX, camY, tint(remote.name));
+      });
+      if (player.hurt <= 0 || ((animTime * 16) | 0) % 2 === 0) {
+        drawActor(player.x + player.w / 2, player.y + player.h, {
+          facing: player.facing,
+          anim: animName(),
+          frame: player.frame,
+          scarf: "#f0b429"
+        }, camX, camY);
+      }
+      nameplate(save.name, player.x + 7, player.y, camX, camY, "#f4f0e4");
     }
-    $("title").hidden = mode !== "title";
-    $("pause").hidden = mode !== "pause";
-    $("notes").hidden = mode !== "notes";
-    $("over").hidden = mode !== "over";
-    $("win").hidden = mode !== "win";
-    $("pause-time").textContent = "On the road " + fmt(state.time) + ".";
-    $("win-time").textContent = "You took " + fmt(state.time) + ".";
-    $("over-msg").textContent = state.overMsg || "";
-    var saved = !!readSave();
-    $("btn-continue").disabled = !saved;
-    $("btn-load").hidden = !saved;
-    var soundLabel = "Sound: " + (soundOn ? "on" : "off");
-    $("btn-sound").textContent = soundLabel;
-    $("btn-sound").setAttribute("aria-pressed", soundOn ? "true" : "false");
-    $("btn-pause-sound").textContent = soundLabel;
-    document.body.dataset.mode = mode;
-    lastSync = mode;
+    for (var i = floaters.length - 1; i >= 0; i--) {
+      var floater = floaters[i];
+      ctx.fillStyle = floater.color;
+      ctx.font = "10px ui-monospace, monospace";
+      ctx.fillText(floater.text, Math.round(floater.x - camX), Math.round(floater.y - camY - (0.7 - floater.t) * 18));
+    }
   }
 
-  function blurFocus() {
-    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  function tint(name) {
+    var colors = ["#f0b429", "#7fd1c7", "#e07a9a", "#8fd06a", "#d0b4f0", "#f0d2a8"];
+    var n = 0;
+    for (var i = 0; i < name.length; i++) n += name.charCodeAt(i);
+    return colors[n % colors.length];
   }
 
-  function setMode(next) {
-    mode = next;
-    sync();
+  function nameplate(text, x, y, camX, camY, color) {
+    ctx.font = "10px ui-monospace, monospace";
+    ctx.fillStyle = color;
+    ctx.fillText(text, Math.round(x - camX - 10), Math.round(y - camY - 18));
   }
 
-  function newGame() {
-    particles = [];
-    toasts = [];
-    fade = null;
-    state = makeState();
-    placeAtStart();
-    state.exitLock = 0.2;
-    checkpoint();
-    setMode("play");
-    blurFocus();
-    toast("Ashfen. The clinic is the west building.");
+  function drawScenery(shown, camX, camY) {
+    (shown.scenery || []).forEach(function (piece) {
+      var x = piece.x - camX;
+      var y = piece.y - camY;
+      if (piece.kind === "house" || piece.kind === "tower") {
+        ctx.fillStyle = piece.kind === "tower" ? "#2c3648" : "#3a2e28";
+        ctx.fillRect(x, y, piece.w, piece.h);
+        ctx.fillStyle = "#f0b429";
+        for (var wy = 16; wy < piece.h - 20; wy += 22) {
+          for (var wx = 12; wx < piece.w - 16; wx += 22) ctx.fillRect(x + wx, y + wy, 6, 8);
+        }
+      } else if (piece.kind === "tree") {
+        ctx.fillStyle = "#5a3a22";
+        ctx.fillRect(x + 10, y + 28, 6, 40);
+        ctx.fillStyle = "#1b5c30";
+        ctx.fillRect(x, y, 26, 36);
+        ctx.fillStyle = "#2f8a44";
+        ctx.fillRect(x + 4, y + 4, 12, 10);
+      } else if (piece.kind === "lamp") {
+        ctx.fillStyle = "#3a342c";
+        ctx.fillRect(x, y, 3, 36);
+        ctx.fillStyle = "#f0b429";
+        ctx.fillRect(x - 2, y - 4, 7, 5);
+      } else if (piece.kind === "scaffold") {
+        ctx.fillStyle = "#6a5a3a";
+        ctx.fillRect(x, y, 6, piece.h);
+        ctx.fillStyle = "#c4a46c";
+        for (var sy = 0; sy < piece.h; sy += 16) ctx.fillRect(x - 8, y + sy, 22, 3);
+      } else if (piece.kind === "banner") {
+        ctx.fillStyle = "#f4f0e4";
+        ctx.fillRect(x, y, 4, 48);
+        ctx.fillStyle = "#2fbfa4";
+        ctx.fillRect(x + 4, y + 4, 16, 12);
+      }
+    });
   }
 
-  function continueGame() {
-    var data = readSave();
-    if (!data) return;
-    particles = [];
-    fade = null;
-    applySave(data);
-    setMode("play");
-    blurFocus();
-    toast("Road restored.");
+  function drawSolid(shown, solid, camX, camY) {
+    var x = solid.x - camX;
+    var y = solid.y - camY;
+    if (solid.oneWay) {
+      ctx.fillStyle = "#8a5a32";
+      ctx.fillRect(x, y, solid.w, solid.h);
+      ctx.fillStyle = "#e2b56a";
+      ctx.fillRect(x, y, solid.w, 3);
+      return;
+    }
+    ctx.fillStyle = shown.id === "haven" ? "#67a85a" : shown.id === "woods" ? "#245c34" : "#5c6b52";
+    ctx.fillRect(x, y, solid.w, solid.h);
+    ctx.fillStyle = shown.id === "haven" ? "#d8f0c8" : "#8d7352";
+    ctx.fillRect(x, y, solid.w, 6);
+    ctx.fillStyle = "rgba(0,0,0,0.15)";
+    for (var i = 8; i < solid.w; i += 16) ctx.fillRect(x + i, y + 8, 2, Math.min(20, solid.h - 10));
   }
 
-  function toggleSound() {
-    soundOn = !soundOn;
-    try { localStorage.setItem(SOUND_KEY, soundOn ? "on" : "off"); } catch (e) { /* ignore */ }
-    if (soundOn) tone(660, 0.06, "square", 0.03);
-    sync();
+  function drawLadder(ladder, camX, camY) {
+    var x = ladder.x - camX;
+    var y = ladder.y - camY;
+    ctx.fillStyle = ladder.rope ? "#c4a46c" : "#6b4a2c";
+    if (ladder.rope) {
+      ctx.fillRect(x + 4, y, 2, ladder.h);
+    } else {
+      ctx.fillRect(x, y, 3, ladder.h);
+      ctx.fillRect(x + ladder.w - 3, y, 3, ladder.h);
+      for (var i = 4; i < ladder.h; i += 8) ctx.fillRect(x, y + i, ladder.w, 2);
+    }
   }
 
-  function openNotes(from) {
-    notesReturn = from;
-    setMode("notes");
+  function drawZone(zone, camX, camY) {
+    ctx.fillStyle = zone.kind === "amber" ? "rgba(226, 176, 70, 0.45)" : "rgba(140, 70, 190, 0.4)";
+    ctx.fillRect(zone.x - camX, zone.y - camY, zone.w, zone.h);
   }
 
-  function togglePause() {
-    if (mode === "notes") { setMode(notesReturn); return; }
-    if (mode === "pause") { setMode("play"); blurFocus(); return; }
-    if (mode === "play") setMode("pause");
+  function drawPortal(portal, camX, camY) {
+    var x = portal.x - camX;
+    var y = portal.y - camY;
+    ctx.fillStyle = "#d9d4c6";
+    ctx.fillRect(x, y, 4, portal.h);
+    ctx.fillRect(x + portal.w - 4, y, 4, portal.h);
+    ctx.fillRect(x, y, portal.w, 4);
+    ctx.fillStyle = "rgba(47, 191, 164, 0.75)";
+    ctx.fillRect(x + 6, y + 6, portal.w - 12, portal.h - 10);
+    ctx.fillStyle = "#f4f0e4";
+    ctx.font = "10px ui-monospace, monospace";
+    ctx.fillText(portal.label, x, y - 4);
   }
 
-  function onTap(name) {
-    unlockAudio();
-    if (name === "pause") { togglePause(); return; }
-    if (name === "tonic") { useTonic(); return; }
-    if (name === "ration") { useRation(); return; }
-    if (name === "dash") { if (mode === "play" && state && !state.talk) wantDash = true; return; }
-    if (name === "act") { doAction(); return; }
+  function drawNpc(npc, camX, camY) {
+    drawActor(npc.x + 8, npc.y + content.player.h, {
+      facing: 1, anim: "idle", frame: 0, scarf: "#f4f0e4", coat: npc.coat || "#d8fff4"
+    }, camX, camY);
+    nameplate(npc.name, npc.x + 8, npc.y, camX, camY, "#f0b429");
+    if (npc.quest && questReady(npc.quest)) {
+      ctx.fillStyle = "#f0b429";
+      ctx.fillRect(npc.x - camX + 6, npc.y - camY - 28, 3, 3);
+    }
+  }
+
+  function drawMonster(mob, camX, camY) {
+    var cx = mob.x + mob.w / 2 - camX;
+    var feet = mob.y + mob.h - camY;
+    ctx.fillStyle = "rgba(0,0,0,0.25)";
+    ctx.fillRect(cx - 6, feet - 2, 12, 2);
+    if (mob.kind === "sporeling") {
+      ctx.fillStyle = "#6c2f90";
+      ctx.fillRect(cx - 7, feet - 16, 14, 12);
+      ctx.fillStyle = "#b06adf";
+      ctx.fillRect(cx - 4, feet - 14, 4, 4);
+      ctx.fillStyle = "#f3e2ff";
+      ctx.fillRect(cx - 5, feet - 12, 2, 2);
+      ctx.fillRect(cx + 2, feet - 11, 2, 2);
+    } else if (mob.kind === "rusher") {
+      drawActor(mob.x + mob.w / 2, mob.y + mob.h, {
+        facing: mob.facing || 1, anim: "walk", frame: animTime * 10, scarf: "#ffd0c8", coat: "#a84848"
+      }, camX, camY);
+    } else {
+      ctx.fillStyle = "#e2b15a";
+      ctx.fillRect(cx - 6, feet - 16, 12, 12);
+      ctx.fillStyle = "#fff1c4";
+      ctx.fillRect(cx - 3, feet - 13, 6, 4);
+      ctx.fillStyle = "#1a1408";
+      ctx.fillRect(cx - 2, feet - 12, 2, 2);
+      ctx.fillRect(cx + 1, feet - 12, 2, 2);
+    }
+    if (mob.hp < mob.maxHp) {
+      ctx.fillStyle = "#1a1408";
+      ctx.fillRect(cx - 8, feet - 20, 16, 3);
+      ctx.fillStyle = "#e15d6a";
+      ctx.fillRect(cx - 8, feet - 20, Math.max(0, 16 * mob.hp / mob.maxHp), 3);
+    }
+  }
+
+  function drawActor(cx, feet, opt, camX, camY) {
+    var face = opt.facing < 0 ? -1 : 1;
+    var coat = opt.coat || "#178a74";
+    var scarf = opt.scarf || "#f0b429";
+    var walk = opt.anim === "walk";
+    var bob = walk && ((opt.frame | 0) % 2) ? 1 : 0;
+    var tuck = opt.anim === "jump" ? 2 : 0;
+    ctx.save();
+    ctx.translate(Math.round(cx - camX), Math.round(feet - camY));
+    ctx.scale(face, 1);
+    ctx.fillStyle = "rgba(0,0,0,0.25)";
+    ctx.fillRect(-6, -2, 12, 2);
+    ctx.fillStyle = "#243044";
+    ctx.fillRect(-5, -8 + bob + tuck, 3, 6 - tuck);
+    ctx.fillRect(1, -8 + (walk ? -bob : 0) + tuck, 3, 6 - tuck);
+    ctx.fillStyle = "#3a2a24";
+    ctx.fillRect(-5, -3, 3, 2);
+    ctx.fillRect(1, -3, 3, 2);
+    ctx.fillStyle = coat;
+    ctx.fillRect(-5, -18 + bob, 10, 10);
+    ctx.fillStyle = scarf;
+    ctx.fillRect(-5, -18 + bob, 10, 3);
+    if (opt.anim === "attack") {
+      ctx.fillStyle = scarf;
+      ctx.fillRect(4, -16, 10, 3);
+    } else if (opt.anim === "climb") {
+      ctx.fillStyle = coat;
+      ctx.fillRect(-8, -16, 3, 6);
+      ctx.fillRect(5, -14, 3, 6);
+    }
+    ctx.fillStyle = "#f0c7a4";
+    ctx.fillRect(-6, -30 + bob, 12, 11);
+    ctx.fillStyle = "#1c2430";
+    ctx.fillRect(-6, -30 + bob, 12, 4);
+    ctx.fillStyle = "#1a1408";
+    ctx.fillRect(-3, -24 + bob, 2, 2);
+    ctx.fillRect(2, -24 + bob, 2, 2);
+    ctx.fillStyle = "#e0897a";
+    ctx.fillRect(-5, -21 + bob, 2, 1);
+    ctx.fillRect(4, -21 + bob, 2, 1);
+    ctx.restore();
+  }
+
+  function blip(freq, dur) {
+    try {
+      var ac = blip.ac || (blip.ac = new (window.AudioContext || window.webkitAudioContext)());
+      if (ac.state === "suspended") ac.resume();
+      var o = ac.createOscillator();
+      var g = ac.createGain();
+      o.type = "square";
+      o.frequency.value = freq;
+      g.gain.value = 0.03;
+      o.connect(g);
+      g.connect(ac.destination);
+      o.start();
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+      o.stop(ac.currentTime + dur + 0.02);
+    } catch (err) { /* sound is optional */ }
+  }
+
+  function loop(now) {
+    try { frame(now); } catch (err) { console.error(err); }
+    requestAnimationFrame(loop);
+  }
+
+  function frame(now) {
+    var dt = Math.min(0.05, (now - loopLast) / 1000 || 0);
+    loopLast = now;
+    if (document.hidden) dt = 0;
+    animTime += dt;
+    if (toasts.length) {
+      toasts[0].t -= dt;
+      if (toasts[0].t <= 0) toasts.shift();
+    }
+    for (var i = floaters.length - 1; i >= 0; i--) {
+      floaters[i].t -= dt;
+      if (floaters[i].t <= 0) floaters.splice(i, 1);
+    }
+    if (playing && !uiLock) {
+      stepPlayer(dt);
+      stepOffline(dt);
+      stepZones(dt);
+      if (consume("attack")) tryAttack();
+      if (consume("tonic")) useTonic();
+      if (attackLock > 0) attackLock -= dt;
+      sendAcc += dt;
+      if (online() && sendAcc > 0.08) {
+        sendAcc = 0;
+        sendState();
+      }
+    } else if (playing) {
+      player.vx = 0;
+      consume("attack");
+      consume("tonic");
+      consume("jump");
+      consume("up");
+    }
+    if (content) draw();
+    if (playing) syncHud();
+  }
+
+  function bootSave(name) {
+    var existing = loadSave();
+    if (existing && existing.name.toLowerCase() === name.toLowerCase()) save = existing;
+    else if (existing && !name) save = existing;
+    else {
+      save = fresh(name);
+      if (existing && existing.name.toLowerCase() === name.toLowerCase()) save = existing;
+    }
+    if (!save.kills) save.kills = { sporeling: 0, rusher: 0, mite: 0 };
+    map = mapById(save.map || "ashfen");
+    player = makePlayer(save.x || map.spawn.x, save.y || map.spawn.y);
+    save.hp = clamp(save.hp || maxHp(), 1, maxHp());
+  }
+
+  function startNamed(name, wantOnline) {
+    bootSave(name);
+    persist();
+    if (wantOnline) connect(name);
+    else begin(false);
   }
 
   function bind() {
     document.addEventListener("keydown", function (e) {
+      var tag = e.target && e.target.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") {
+        if (e.key === "Escape") e.target.blur();
+        return;
+      }
       var act = mapKey(e.key);
       if (!act) return;
-      var typing = e.target && e.target.closest && e.target.closest("button, input, textarea, a");
-      if (typing && (e.key === " " || e.key === "Enter")) return;
       if (e.key === " " || e.key.indexOf("Arrow") === 0) e.preventDefault();
-      if (e.repeat) return;
-      keyHeld[act] = true;
-      if (act === "act" || act === "dash" || act === "pause" || act === "tonic" || act === "ration") onTap(act);
+      keys[act] = true;
+      if (act === "attack" || act === "tonic" || act === "jump" || act === "up") taps[act] = true;
+      if (e.key === "Enter" && playing && !uiLock) $("chat-input").focus();
+      if (e.key === "Escape") {
+        if (!$("shop").hidden) closeShop();
+        else if (!$("dialog").hidden) closeDialog();
+      }
     });
     document.addEventListener("keyup", function (e) {
       var act = mapKey(e.key);
-      if (act) keyHeld[act] = false;
+      if (act) keys[act] = false;
     });
-    window.addEventListener("blur", function () { keyHeld = {}; });
+    window.addEventListener("blur", function () { keys = {}; });
     document.querySelectorAll("#touch button").forEach(function (btn) {
-      btn.addEventListener("pointerdown", function (e) {
-        e.preventDefault();
-        btn.setPointerCapture(e.pointerId);
-        unlockAudio();
-        if (btn.dataset.hold) padHeld[btn.dataset.hold] = true;
-        if (btn.dataset.tap) onTap(btn.dataset.tap);
+      btn.addEventListener("pointerdown", function (ev) {
+        ev.preventDefault();
+        if (btn.dataset.hold) pad[btn.dataset.hold] = true;
+        if (btn.dataset.tap === "jump") { keys.jump = true; taps.jump = true; }
+        if (btn.dataset.tap === "attack") tryAttack();
+        if (btn.dataset.tap === "tonic") useTonic();
       });
-      function release() { if (btn.dataset.hold) padHeld[btn.dataset.hold] = false; }
+      function release() {
+        if (btn.dataset.hold) pad[btn.dataset.hold] = false;
+        if (btn.dataset.tap === "jump") keys.jump = false;
+      }
       btn.addEventListener("pointerup", release);
       btn.addEventListener("pointercancel", release);
-      btn.addEventListener("lostpointercapture", release);
-      btn.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+      btn.addEventListener("contextmenu", function (ev) { ev.preventDefault(); });
     });
-    $("btn-new").addEventListener("click", function () {
-      unlockAudio();
-      if (readSave()) $("confirm").hidden = false;
-      else newGame();
+    $("login").addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var name = validName($("name").value);
+      if (!name) { toast("Use 2–12 letters or numbers."); return; }
+      $("name").value = name;
+      startNamed(name, true);
     });
-    $("btn-new-yes").addEventListener("click", function () { $("confirm").hidden = true; newGame(); });
-    $("btn-new-no").addEventListener("click", function () { $("confirm").hidden = true; });
-    $("btn-continue").addEventListener("click", continueGame);
-    $("btn-notes").addEventListener("click", function () { openNotes("title"); });
-    $("btn-sound").addEventListener("click", toggleSound);
-    $("btn-resume").addEventListener("click", function () { setMode("play"); blurFocus(); });
-    $("btn-save").addEventListener("click", function () {
-      if (checkpoint()) toast("Saved.");
-      else toast("This browser would not store the save.");
+    $("play-offline").addEventListener("click", function () {
+      var name = validName($("name").value) || "Traveler";
+      $("name").value = name;
+      startNamed(name, false);
     });
-    $("btn-pause-notes").addEventListener("click", function () { openNotes("pause"); });
-    $("btn-pause-sound").addEventListener("click", toggleSound);
-    $("btn-title").addEventListener("click", function () { setMode("title"); });
-    $("btn-close-notes").addEventListener("click", function () { setMode(notesReturn); });
-    $("btn-load").addEventListener("click", continueGame);
-    $("btn-over-new").addEventListener("click", newGame);
-    $("btn-over-title").addEventListener("click", function () { setMode("title"); });
-    $("btn-win-walk").addEventListener("click", function () { setMode("play"); blurFocus(); });
-    $("btn-win-title").addEventListener("click", function () { setMode("title"); });
-    $("btn-win-new").addEventListener("click", newGame);
-    $("next").addEventListener("click", function () { unlockAudio(); doAction(); });
-    $("use-tonic").addEventListener("click", function () { unlockAudio(); useTonic(); });
-    $("use-ration").addEventListener("click", function () { unlockAudio(); useRation(); });
+    $("give-up").addEventListener("click", function () { failConnect("Walking offline."); });
+    $("chat-form").addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var text = $("chat-input").value;
+      $("chat-input").value = "";
+      $("chat-input").blur();
+      canvas.focus();
+      if (!text.trim()) return;
+      if (online()) send({ t: "chat", text: text });
+      else if (text.trim().charAt(0) === "/") log("sys", "Parties need the server.");
+      else log("me", save.name + ": " + text.trim() + " (only you)");
+    });
+    $("people").addEventListener("click", function (ev) {
+      var btn = ev.target.closest("button");
+      if (!btn || !online()) return;
+      send({ t: "invite", name: btn.dataset.name });
+    });
+    $("invite-yes").addEventListener("click", function () {
+      send({ t: "accept" });
+      $("invite").hidden = true;
+    });
+    $("invite-no").addEventListener("click", function () {
+      send({ t: "decline" });
+      $("invite").hidden = true;
+    });
+    $("dlg-next").addEventListener("click", function () {
+      if (!dialog) return;
+      if (dialog.i < dialog.lines.length - 1) {
+        dialog.i += 1;
+        showDialogLine();
+      } else closeDialog();
+    });
+    $("dlg-close").addEventListener("click", closeDialog);
+    $("dlg-shop").addEventListener("click", openShop);
+    $("shop-close").addEventListener("click", closeShop);
     if (navigator.maxTouchPoints > 0) document.body.classList.add("touch");
   }
 
   function mapKey(key) {
     var table = {
-      ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right",
-      w: "up", a: "left", s: "down", d: "right",
-      W: "up", A: "left", S: "down", D: "right",
-      e: "act", E: "act", " ": "act", Enter: "act",
-      Shift: "dash", k: "dash", K: "dash",
-      p: "pause", P: "pause", Escape: "pause",
-      u: "tonic", U: "tonic",
-      i: "ration", I: "ration"
+      ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down",
+      a: "left", d: "right", w: "jump", s: "down",
+      A: "left", D: "right", W: "jump", S: "down",
+      " ": "jump",
+      z: "attack", Z: "attack", j: "attack", J: "attack", Control: "attack",
+      x: "tonic", X: "tonic", k: "tonic", K: "tonic"
     };
     return table[key] || null;
   }
 
-  function updateToasts(dt) {
-    if (!toasts.length) return;
-    toasts[0].t -= dt;
-    if (toasts[0].t <= 0) toasts.shift();
-  }
-
-  function updateParticles(dt) {
-    for (var i = particles.length - 1; i >= 0; i--) {
-      var p = particles[i];
-      p.t -= dt;
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.vy += 30 * dt;
-      if (p.t <= 0) particles.splice(i, 1);
-    }
-  }
-
-  function loop(now) {
-    var dt = Math.min(0.05, (now - loop.last) / 1000 || 0);
-    loop.last = now;
-    if (document.hidden) dt = 0;
-    animTime += dt;
-    updateToasts(dt);
-    if (mode === "play") updateParticles(dt);
-    if (state.shake > 0) state.shake -= dt;
-    if (fade) {
-      fade.t += dt / (reduceMotion ? 0.12 : 0.34);
-      if (!fade.mid && fade.t >= 0.5) {
-        fade.mid = true;
-        arrive(fade.id, fade.tx, fade.ty);
-      }
-      if (fade.t >= 1) fade = null;
-    } else if (mode === "play" && !state.talk && dt > 0) {
-      state.time += dt;
-      if (state.exitLock > 0) state.exitLock -= dt;
-      if (state.hintT > 0) state.hintT -= dt;
-      var map = current();
-      updatePlayer(dt, map);
-      if (mode === "play") updateEnemies(dt, map);
-      if (mode === "play") {
-        updateSpores(dt);
-        checkItems(map);
-        if (!fade) touchGates(map);
-        if (!fade && mode === "play") checkTransitions(map);
-        if (mode === "play") updateExposure(dt, map);
-        if (mode === "play" && state.hp <= 0) gameOver("You collapsed.");
-        else if (mode === "play" && state.inf >= 100) gameOver("The infection meter filled.");
-        if (mode === "play") checkWin(map);
-      }
-    }
-    render();
-    sync();
-    requestAnimationFrame(loop);
-  }
-  loop.last = 0;
-
   function boot() {
-    if (!world || !world.maps) throw new Error("Map data did not load.");
-    try {
-      soundOn = localStorage.getItem(SOUND_KEY) !== "off";
-    } catch (e) { soundOn = true; }
     bind();
-    buildGfx();
-    state = makeState();
-    placeAtStart();
-    setMode("title");
-    globalThis.__rpg = {
-      snap: function () {
-        return {
-          mode: mode,
-          map: state.mapId,
-          x: Math.round(state.player.x),
-          y: Math.round(state.player.y),
-          tx: Math.floor((state.player.x + 5) / TILE),
-          ty: Math.floor((state.player.y + 4) / TILE),
-          hp: state.hp,
-          inf: state.inf,
-          mask: state.mask,
-          tonics: state.tonics,
-          rations: state.rations,
-          rust: state.rust,
-          cord: state.cord,
-          seal: state.seal,
-          opened: Object.assign({}, state.opened),
-          picked: Object.assign({}, state.picked),
-          talked: Object.assign({}, state.talked),
-          won: state.won,
-          talk: state.talk ? state.talk.name + ":" + state.talk.i : "",
-          quest: questText(),
-          exposed: state.exposed,
-          enemies: state.enemies.map(function (e) { return { id: e.id, x: Math.round(e.x), y: Math.round(e.y), mode: e.mode }; }),
-          spores: state.spores[state.mapId] ? state.spores[state.mapId].cells.length : 0,
-          player: { x: state.player.x, y: state.player.y, w: state.player.w, h: state.player.h },
-          hazes: (current().hazes || []).map(hazeBox)
-        };
-      },
-      goto: function (id, tx, ty) {
-        fade = null;
-        arrive(id, tx, ty);
-        setMode("play");
-      },
-      give: function (kind) { grant(kind, kind); },
-      setMeters: function (hp, inf) { state.hp = hp; state.inf = inf; },
-      act: function () { doAction(); },
-      newGame: newGame
-    };
-    requestAnimationFrame(loop);
+    fetch("assets/content.json").then(function (res) {
+      if (!res.ok) throw new Error("content");
+      return res.json();
+    }).then(function (data) {
+      content = data;
+      map = mapById("ashfen");
+      var existing = loadSave();
+      if (existing) $("name").value = existing.name;
+      var hint = serverUrl()
+        ? "Online server: " + serverUrl()
+        : "No server URL yet. Play offline, or set serverUrl in assets/config.js.";
+      $("server-hint").textContent = hint;
+      globalThis.__rpg = {
+        snap: function () {
+          return {
+            mode: mode,
+            playing: playing,
+            map: map && map.id,
+            x: player ? Math.round(player.x) : 0,
+            y: player ? Math.round(player.y) : 0,
+            onGround: player ? player.onGround : false,
+            hp: save && save.hp,
+            level: save && save.level,
+            notes: save && save.notes,
+            infection: save && Math.round(save.infection),
+            mask: save && save.mask,
+            tonics: save && save.tonics,
+            kills: save && Object.assign({}, save.kills),
+            quests: save && Object.assign({}, save.quests),
+            haven: save && save.haven,
+            myId: myId,
+            others: Object.keys(remotes).map(function (id) {
+              var r = remotes[id];
+              return { id: r.id, name: r.name, x: Math.round(r.tx), y: Math.round(r.ty) };
+            }),
+            monsters: monsters().filter(function (m) { return m.alive !== false && m.hp > 0; }).map(function (m) {
+              return { id: m.id, kind: m.kind, hp: m.hp, x: Math.round(m.x) };
+            }),
+            party: party.map(function (p) { return p.name; }),
+            log: Array.prototype.map.call($("log").children, function (node) { return node.textContent; })
+          };
+        }
+      };
+      requestAnimationFrame(loop);
+    }).catch(function () {
+      $("boot-error").hidden = false;
+      $("boot-error").textContent = "The valley data did not load.";
+    });
   }
 
-  window.addEventListener("error", function (e) {
-    var el = $("boot-error");
-    if (!el) return;
-    el.hidden = false;
-    el.textContent = (e && e.message) || "The game failed to start.";
-  });
-
-  try {
-    boot();
-  } catch (err) {
-    var el = $("boot-error");
-    if (el) {
-      el.hidden = false;
-      el.textContent = err && err.message ? err.message : "The game failed to start.";
-    }
-    throw err;
-  }
+  boot();
 })();

@@ -1,0 +1,22 @@
+# Optional Fly.io config. From the repo root: fly launch --no-deploy, then fly deploy.
+# The client URL is wss://<app-name>.fly.dev
+app = "pandemicradar"
+primary_region = "iad"
+
+[build]
+  dockerfile = "server/Dockerfile"
+
+[env]
+  PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1

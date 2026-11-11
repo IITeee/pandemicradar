@@ -1,0 +1,301 @@
+{
+  "view": { "w": 384, "h": 216 },
+  "physics": { "gravity": 720, "jump": -340, "speed": 108, "climb": 76, "fall": 300 },
+  "player": { "w": 14, "h": 26 },
+  "expBase": 18,
+  "expStep": 12,
+  "hpBase": 50,
+  "hpStep": 8,
+  "dmgBase": 8,
+  "dmgStep": 2,
+  "respawnMs": 12000,
+  "kinds": {
+    "sporeling": { "hp": 22, "speed": 26, "touch": 6, "infection": 5, "exp": 8, "notes": 3, "aggro": 86, "w": 16, "h": 16 },
+    "rusher": { "hp": 30, "speed": 34, "burst": 92, "touch": 10, "infection": 3, "exp": 12, "notes": 5, "aggro": 108, "w": 16, "h": 22 },
+    "mite": { "hp": 16, "speed": 30, "touch": 7, "infection": 6, "exp": 10, "notes": 4, "aggro": 78, "w": 14, "h": 14, "hover": true }
+  },
+  "shop": [
+    { "id": "tonic", "name": "Field Tonic", "cost": 12, "blurb": "Heals 30 health and clears 25 infection." },
+    { "id": "bandage", "name": "Bandage", "cost": 8, "blurb": "Heals 22 health." }
+  ],
+  "quests": {
+    "lumen": {
+      "title": "Spore sacs",
+      "need": { "sporeling": 6 },
+      "reward": { "mask": true, "exp": 36, "notes": 20 },
+      "track": "Sporelings"
+    },
+    "ilya": {
+      "title": "Amber sample",
+      "need": { "mite": 4 },
+      "reward": { "exp": 42, "notes": 24, "tonics": 1 },
+      "track": "Amber mites"
+    },
+    "sol": {
+      "title": "Safe Haven",
+      "reward": { "exp": 50, "notes": 20 },
+      "track": "Speak to Keeper Sol"
+    }
+  },
+  "maps": [
+    {
+      "id": "ashfen",
+      "name": "Ashfen",
+      "width": 1100,
+      "height": 250,
+      "sky": ["#243044", "#3d5a73"],
+      "ground": 196,
+      "solids": [
+        { "x": 0, "y": 196, "w": 1100, "h": 54 },
+        { "x": 150, "y": 118, "w": 230, "h": 12, "oneWay": true },
+        { "x": 690, "y": 132, "w": 170, "h": 12, "oneWay": true }
+      ],
+      "ladders": [
+        { "x": 188, "y": 118, "w": 14, "h": 78, "deck": 118 }
+      ],
+      "portals": [
+        { "x": 1036, "y": 146, "w": 56, "h": 52, "to": "woods", "toX": 78, "toY": 184, "label": "Whisperwood" }
+      ],
+      "zones": [],
+      "scenery": [
+        { "kind": "house", "x": 140, "y": 62, "w": 250, "h": 134 },
+        { "kind": "house", "x": 670, "y": 78, "w": 200, "h": 118 },
+        { "kind": "lamp", "x": 90, "y": 160 },
+        { "kind": "lamp", "x": 560, "y": 160 }
+      ],
+      "npcs": [
+        {
+          "id": "lumen",
+          "name": "Dr. Lumen",
+          "x": 470,
+          "y": 170,
+          "coat": "#e7fff8",
+          "quest": "lumen",
+          "lines": [
+            "A sporeling slipped the rope line and is shedding sacs on the east street.",
+            "Six of them. Bring the sacs down and I will give you a cloth mask. It slows Sporeveil and Amberhaze. It will not stop a tackle."
+          ],
+          "ready": ["That is six. Hold still — the mask ties at the back. Whisperwood is through the east arch."],
+          "done": ["The mask is cloth, not a miracle. Jump the violet patches. Rushfever still has to be dodged."]
+        },
+        {
+          "id": "mira",
+          "name": "Mira",
+          "x": 250,
+          "y": 92,
+          "coat": "#f0b429",
+          "shop": true,
+          "lines": [
+            "Mira. I sell tonics from the clinic roof. Climb the ladder. Notes drop from anything that used to be a person or a bloom."
+          ]
+        }
+      ],
+      "monsters": [
+        { "kind": "sporeling", "x": 760, "y": 180, "homeL": 700, "homeR": 980 }
+      ],
+      "spawn": { "x": 64, "y": 170 }
+    },
+    {
+      "id": "woods",
+      "name": "Whisperwood",
+      "width": 1500,
+      "height": 280,
+      "sky": ["#102018", "#1d3a28"],
+      "ground": 210,
+      "solids": [
+        { "x": 0, "y": 210, "w": 1500, "h": 70 },
+        { "x": 180, "y": 142, "w": 210, "h": 12, "oneWay": true },
+        { "x": 470, "y": 86, "w": 170, "h": 12, "oneWay": true },
+        { "x": 760, "y": 146, "w": 230, "h": 12, "oneWay": true },
+        { "x": 1120, "y": 112, "w": 190, "h": 12, "oneWay": true }
+      ],
+      "ladders": [
+        { "x": 250, "y": 142, "w": 12, "h": 68, "deck": 142 },
+        { "x": 820, "y": 146, "w": 12, "h": 64, "deck": 146 },
+        { "x": 530, "y": 86, "w": 10, "h": 124, "deck": 86, "rope": true }
+      ],
+      "portals": [
+        { "x": 0, "y": 156, "w": 48, "h": 56, "to": "ashfen", "toX": 960, "toY": 170, "label": "Ashfen" },
+        { "x": 1452, "y": 156, "w": 48, "h": 56, "to": "glassport", "toX": 72, "toY": 174, "label": "Glassport" }
+      ],
+      "zones": [
+        { "x": 560, "y": 192, "w": 180, "h": 20, "dps": 12, "kind": "spore" }
+      ],
+      "scenery": [
+        { "kind": "tree", "x": 40, "y": 70 },
+        { "kind": "tree", "x": 360, "y": 60 },
+        { "kind": "tree", "x": 680, "y": 40 },
+        { "kind": "tree", "x": 1000, "y": 64 },
+        { "kind": "tree", "x": 1320, "y": 50 }
+      ],
+      "npcs": [
+        {
+          "id": "bram",
+          "name": "Bram",
+          "x": 120,
+          "y": 184,
+          "coat": "#2f7a45",
+          "lines": [
+            "Bram. The violet carpet is Sporeveil. It does not chase. It just grows where you stand.",
+            "The high limbs are safer. Glassport is east, and the things there still remember how to sprint."
+          ]
+        }
+      ],
+      "monsters": [
+        { "kind": "sporeling", "x": 340, "y": 194, "homeL": 200, "homeR": 520 },
+        { "kind": "sporeling", "x": 620, "y": 194, "homeL": 540, "homeR": 860 },
+        { "kind": "sporeling", "x": 1000, "y": 194, "homeL": 900, "homeR": 1280 },
+        { "kind": "sporeling", "x": 230, "y": 126, "homeL": 190, "homeR": 360 },
+        { "kind": "sporeling", "x": 860, "y": 130, "homeL": 780, "homeR": 960 }
+      ],
+      "spawn": { "x": 78, "y": 184 }
+    },
+    {
+      "id": "glassport",
+      "name": "Glassport",
+      "width": 1400,
+      "height": 270,
+      "sky": ["#151b28", "#2a3548"],
+      "ground": 200,
+      "solids": [
+        { "x": 0, "y": 200, "w": 1400, "h": 70 },
+        { "x": 200, "y": 128, "w": 240, "h": 12, "oneWay": true },
+        { "x": 560, "y": 78, "w": 180, "h": 12, "oneWay": true },
+        { "x": 860, "y": 132, "w": 260, "h": 12, "oneWay": true }
+      ],
+      "ladders": [
+        { "x": 250, "y": 128, "w": 14, "h": 72, "deck": 128 },
+        { "x": 620, "y": 78, "w": 12, "h": 50, "deck": 78 },
+        { "x": 980, "y": 132, "w": 14, "h": 68, "deck": 132 }
+      ],
+      "portals": [
+        { "x": 0, "y": 146, "w": 48, "h": 56, "to": "woods", "toX": 1360, "toY": 184, "label": "Whisperwood" },
+        { "x": 1352, "y": 146, "w": 48, "h": 56, "to": "cordon", "toX": 72, "toY": 224, "label": "The Cordon" }
+      ],
+      "zones": [],
+      "scenery": [
+        { "kind": "tower", "x": 180, "y": 36, "w": 270, "h": 164 },
+        { "kind": "tower", "x": 540, "y": 16, "w": 210, "h": 184 },
+        { "kind": "tower", "x": 840, "y": 40, "w": 290, "h": 160 }
+      ],
+      "npcs": [
+        {
+          "id": "quill",
+          "name": "Archivist Quill",
+          "x": 300,
+          "y": 102,
+          "coat": "#3d5f8a",
+          "lines": [
+            "Quill. Rushfever is not a cloud. It is a person who sprints, then has to stop.",
+            "Hit them while they turn around. The cordon is east. Warden Ilya is counting amber mites."
+          ]
+        }
+      ],
+      "monsters": [
+        { "kind": "rusher", "x": 420, "y": 178, "homeL": 360, "homeR": 760 },
+        { "kind": "rusher", "x": 1040, "y": 178, "homeL": 900, "homeR": 1280 },
+        { "kind": "rusher", "x": 940, "y": 110, "homeL": 880, "homeR": 1080 }
+      ],
+      "spawn": { "x": 72, "y": 174 }
+    },
+    {
+      "id": "cordon",
+      "name": "The Cordon",
+      "width": 1240,
+      "height": 320,
+      "sky": ["#241c14", "#3a3428"],
+      "ground": 250,
+      "solids": [
+        { "x": 0, "y": 250, "w": 1240, "h": 70 },
+        { "x": 140, "y": 186, "w": 250, "h": 12, "oneWay": true },
+        { "x": 460, "y": 124, "w": 230, "h": 12, "oneWay": true },
+        { "x": 760, "y": 64, "w": 200, "h": 12, "oneWay": true },
+        { "x": 980, "y": 64, "w": 220, "h": 12, "oneWay": true }
+      ],
+      "ladders": [
+        { "x": 210, "y": 186, "w": 14, "h": 64, "deck": 186 },
+        { "x": 540, "y": 124, "w": 14, "h": 62, "deck": 124 },
+        { "x": 860, "y": 64, "w": 14, "h": 60, "deck": 64 }
+      ],
+      "portals": [
+        { "x": 0, "y": 196, "w": 48, "h": 56, "to": "glassport", "toX": 1260, "toY": 174, "label": "Glassport" },
+        { "x": 1128, "y": 14, "w": 52, "h": 50, "to": "haven", "toX": 86, "toY": 160, "label": "Safe Haven" }
+      ],
+      "zones": [
+        { "x": 300, "y": 232, "w": 200, "h": 20, "dps": 14, "kind": "amber", "drift": 0.7, "amp": 36, "phase": 0 },
+        { "x": 640, "y": 168, "w": 120, "h": 18, "dps": 14, "kind": "amber", "drift": 0.9, "amp": 28, "phase": 1.4 }
+      ],
+      "scenery": [
+        { "kind": "scaffold", "x": 120, "y": 40, "w": 40, "h": 210 },
+        { "kind": "scaffold", "x": 500, "y": 20, "w": 36, "h": 230 },
+        { "kind": "scaffold", "x": 900, "y": 10, "w": 36, "h": 240 }
+      ],
+      "npcs": [
+        {
+          "id": "ilya",
+          "name": "Warden Ilya",
+          "x": 90,
+          "y": 224,
+          "coat": "#2c3340",
+          "quest": "ilya",
+          "lines": [
+            "Ilya. Amberhaze walks a route. It does not hate you. It also does not stop.",
+            "The mites up the scaffolds are the sample I need. Four. Then take the top arch to Safe Haven."
+          ],
+          "ready": ["Four mites. That is a sample. The top arch is Safe Haven. If Lumen gave you a mask, the keeper will let the road end."],
+          "done": ["The haze keeps its schedule. You keep your feet."]
+        }
+      ],
+      "monsters": [
+        { "kind": "mite", "x": 220, "y": 160, "homeL": 160, "homeR": 360 },
+        { "kind": "mite", "x": 540, "y": 100, "homeL": 480, "homeR": 660 },
+        { "kind": "mite", "x": 860, "y": 40, "homeL": 780, "homeR": 940 },
+        { "kind": "mite", "x": 700, "y": 220, "homeL": 560, "homeR": 900 }
+      ],
+      "spawn": { "x": 72, "y": 224 }
+    },
+    {
+      "id": "haven",
+      "name": "Safe Haven",
+      "width": 960,
+      "height": 240,
+      "sky": ["#d7f3ea", "#8fd0c4"],
+      "ground": 186,
+      "solids": [
+        { "x": 0, "y": 186, "w": 960, "h": 54 },
+        { "x": 380, "y": 128, "w": 140, "h": 12, "oneWay": true }
+      ],
+      "ladders": [
+        { "x": 430, "y": 128, "w": 14, "h": 58, "deck": 128 }
+      ],
+      "portals": [
+        { "x": 0, "y": 132, "w": 48, "h": 56, "to": "cordon", "toX": 1040, "toY": 38, "label": "The Cordon" }
+      ],
+      "zones": [],
+      "scenery": [
+        { "kind": "banner", "x": 180, "y": 70 },
+        { "kind": "banner", "x": 700, "y": 70 },
+        { "kind": "tree", "x": 80, "y": 90 },
+        { "kind": "tree", "x": 820, "y": 86 }
+      ],
+      "npcs": [
+        {
+          "id": "sol",
+          "name": "Keeper Sol",
+          "x": 560,
+          "y": 160,
+          "coat": "#f4f0e4",
+          "quest": "sol",
+          "lines": [
+            "Keeper Sol. The air on this side stays put. If you are wearing Lumen's mask, the road can end here.",
+            "You can also turn around. The cordon arch is behind you."
+          ],
+          "ready": ["The gate is shut behind the idea of you. Sporeveil, Rushfever, and Amberhaze stay on the scaffold side."],
+          "done": ["You can stand here. The meter can climb down."]
+        }
+      ],
+      "monsters": [],
+      "spawn": { "x": 86, "y": 160 }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "pandemicradar-server",
+  "private": true,
+  "version": "1.0.0",
+  "description": "WebSocket game server for the Pandemicradar side-scrolling MMO.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}
