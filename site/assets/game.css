@@ -38,10 +38,10 @@ body {
   position: relative;
   max-width: 980px;
   margin: 0 auto;
-  background: #14110e;
-  border: 4px solid #3a3228;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45), inset 0 0 0 2px #0c0e0c;
-  padding: 8px;
+  background: linear-gradient(#3a2a1c, #1a140e 12px, #1a140e calc(100% - 12px), #3a2a1c);
+  border: 4px solid #e2b15a;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45), inset 0 0 0 3px #2a1c12, inset 0 0 0 5px #6b4a28;
+  padding: 10px;
 }
 
 .hud {
@@ -49,9 +49,12 @@ body {
   grid-template-columns: minmax(110px, 0.8fr) minmax(220px, 1.4fr) minmax(160px, 1fr);
   gap: 8px 12px;
   align-items: center;
-  padding: 6px 8px 8px;
-  background: #101612;
-  border-bottom: 3px solid var(--line);
+  padding: 8px 10px;
+  background:
+    linear-gradient(#2a2218, #141810 8px);
+  border: 2px solid #6b4a28;
+  border-bottom: 3px solid #e2b15a;
+  box-shadow: inset 0 0 0 1px #1a120c;
 }
 
 #area { margin: 0; color: var(--gold); font-size: 14px; }
@@ -65,11 +68,16 @@ body {
   font-size: 12px;
   margin: 2px 0;
 }
-.track { height: 8px; background: #0c100e; border: 1px solid #314038; }
-.track i { display: block; height: 100%; width: 0; }
-.meter.hp .track i { background: var(--hp); }
-.meter.inf .track i { background: var(--inf); }
-.meter.exp .track i { background: var(--exp); }
+.track {
+  height: 10px;
+  background: #0c100e;
+  border: 2px solid #3a2a1c;
+  box-shadow: inset 0 1px 0 #000;
+}
+.track i { display: block; height: 100%; width: 0; box-shadow: inset 0 2px 0 rgba(255,255,255,0.35); }
+.meter.hp .track i { background: linear-gradient(#ffb0b4, var(--hp)); }
+.meter.inf .track i { background: linear-gradient(#f0d0ff, var(--inf)); }
+.meter.exp .track i { background: linear-gradient(#fff1c2, var(--exp)); }
 
 .bag {
   display: flex;
@@ -197,11 +205,26 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outl
   width: min(480px, 100%);
   max-height: 100%;
   overflow: auto;
-  background: var(--panel);
+  background:
+    linear-gradient(#243028, #17211b 28px);
   border: 3px solid var(--gold);
-  box-shadow: 6px 6px 0 #000;
+  box-shadow: 6px 6px 0 #000, inset 0 0 0 2px #3a2a18;
   padding: 14px 16px 16px;
 }
+.crest {
+  width: 54px;
+  height: 54px;
+  margin: 0 auto 6px;
+  background:
+    linear-gradient(#f0b429, #f0b429) center 8px / 8px 28px no-repeat,
+    linear-gradient(#1f8f78, #1f8f78) center 18px / 28px 16px no-repeat,
+    radial-gradient(circle at 50% 42%, #f6c9ad 0 8px, transparent 9px),
+    #1a1422;
+  border: 3px solid #f4f0e4;
+  box-shadow: 0 0 0 3px #1a1422, 4px 4px 0 #000;
+}
+.title-card .word { text-align: center; text-shadow: 3px 3px 0 #1a120c; }
+.title-card .eyebrow { text-align: center; }
 .eyebrow { margin: 0; color: var(--teal); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
 .word { margin: 2px 0 8px; font-size: 28px; line-height: 1.1; color: var(--gold); }
 .card p, .hint { line-height: 1.45; }
