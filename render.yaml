@@ -9,7 +9,7 @@ services:
     dockerContext: .
     plan: free
     healthCheckPath: /health
-    autoDeploy: true
+    autoDeploy: false
     envVars:
       - key: NODE_ENV
         value: production
